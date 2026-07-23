@@ -72,22 +72,102 @@ export interface Voucher {
   createdAt: string;
 }
 
-export interface Company {
+export interface Customer {
   id: string;
+  companyId: string;
   name: string;
-  legalName: string;
-  fyStart: string; // YYYY-MM-DD
-  fyEnd: string;   // YYYY-MM-DD
-  gstin?: string;
-  currency: 'INR' | 'USD';
-  currencySymbol: string;
+  tradeName?: string;
+  email: string;
+  phone: string;
+  gstin: string;
   address: string;
   city: string;
   state: string;
   pinCode: string;
+  creditLimit: number;
+  paymentTerms: string;
+  mostlySupplies?: string;
+  currentOutstanding?: number;
+  ledgerId?: string;
+  createdAt?: string;
+}
+
+export interface Supplier {
+  id: string;
+  companyId: string;
+  name: string;
+  email: string;
+  phone: string;
+  gstin: string;
+  address: string;
+  city: string;
+  state: string;
+  pinCode: string;
+  supplies: string;
+  mostlySupplies?: string;
+  currentOutstanding?: number;
+  bankName?: string;
+  accountNo?: string;
+  ifsc?: string;
+  creditPeriod?: string;
+  ledgerId?: string;
+  createdAt?: string;
+}
+
+export interface BillOutstanding {
+  id: string;
+  type: 'receivable' | 'payable';
+  partyName: string;
+  partyType: 'customer' | 'supplier';
+  invoiceNo: string;
+  billDate: string;
+  dueDate: string;
+  amount: number;
+  pendingAmount: number;
+  daysOverdue: number;
+  status: 'Pending' | 'Partially Paid' | 'Overdue' | 'Cleared';
+}
+
+export interface ProductionUnit {
+  unitName: string;
+  address: string;
+  city: string;
+  state: string;
+  pinCode: string;
+}
+
+export interface UnlockedModules {
+  billing: boolean;
+  inventory: boolean;
+  finance: boolean;
+  tax: boolean;
+  ai: boolean;
+}
+
+export interface Company {
+  id: string;
+  name: string;
+  legalName: string;
+  entityType?: string;
+  fyStart: string; // YYYY-MM-DD
+  fyEnd: string;   // YYYY-MM-DD
+  gstin?: string;
+  pan?: string;
+  tan?: string;
+  udyamNo?: string;
+  currency: string;
+  currencySymbol: string;
+  regionalTaxFormat?: 'GST' | 'VAT' | 'Sales Tax' | 'Consumption Tax' | 'Exempt';
+  taxRateDefault?: number;
+  address: string;
+  city: string;
+  state: string;
+  pinCode: string;
+  productionUnit?: ProductionUnit;
   phone: string;
   email: string;
   industry: string;
+  unlockedModules?: UnlockedModules;
   // Security 5-Digit PIN & Quarterly rules
   securityPin: string; // 5-digit PIN
   lastPinChangedAt: string; // ISO timestamp
@@ -255,3 +335,15 @@ export interface DayBookEntry {
     creditLedgers: { name: string; amount: number }[];
   };
 }
+
+export interface AuditLogEntry {
+  id: string;
+  companyId: string;
+  timestamp: string; // ISO String
+  action: string;
+  module: 'Accounting' | 'Billing' | 'Inventory' | 'Company' | 'Finance' | 'Security';
+  details: string;
+  userRole: string;
+  ipAddress?: string;
+}
+

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAccounting } from '../../context/AccountingContext';
-import { Building2, Key, CreditCard, ShieldCheck, CheckCircle2, ArrowRight, Sparkles, X, Lock, Check } from 'lucide-react';
+import { INDIAN_ENTITY_TYPES, INDUSTRY_SECTORS } from '../../config/indian-business-types';
+import { Building2, Key, CreditCard, ShieldCheck, CheckCircle2, ArrowRight, Sparkles, X, Lock, Check, Factory } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
@@ -8,7 +9,7 @@ interface Props {
 }
 
 export const CompanyOnboardingModal: React.FC<Props> = ({ isOpen, onClose }) => {
-  const { resetCompanyAndData, setLicense, setActiveTab } = useAccounting();
+  const { addCompany, setLicense, setActiveTab } = useAccounting();
 
   const [step, setStep] = useState<1 | 2 | 3>(1); // 1: License, 2: Company Details & Features, 3: 5-Digit Security PIN
 
@@ -23,33 +24,44 @@ export const CompanyOnboardingModal: React.FC<Props> = ({ isOpen, onClose }) => 
   const [generatedKey, setGeneratedKey] = useState<string | null>(null);
 
   // Company Details
-  const [compName, setCompName] = useState('New Enterprise');
-  const [legalName, setLegalName] = useState('New Enterprise Private Limited');
+  const [compName, setCompName] = useState('Apex Enterprises');
+  const [legalName, setLegalName] = useState('Apex Enterprises Private Limited');
+  const [entityType, setEntityType] = useState<string>(INDIAN_ENTITY_TYPES[0]);
+  const [industry, setIndustry] = useState<string>(INDUSTRY_SECTORS[0]);
   const [fyStart, setFyStart] = useState('2025-04-01');
   const [fyEnd, setFyEnd] = useState('2026-03-31');
   const [gstin, setGstin] = useState('27AABCU9603R1ZM');
+  const [pan, setPan] = useState('AABCU9603R');
+  const [tan, setTan] = useState('MUMA12345B');
+  const [udyamNo, setUdyamNo] = useState('UDYAM-MH-03-0012345');
   const [currency, setCurrency] = useState<'INR' | 'USD'>('INR');
-  const [currencySymbol, setCurrencySymbol] = useState('₹');
-  const [address, setAddress] = useState('101 Business Hub, Nariman Point');
+  const [address, setAddress] = useState('101 Business Park, Nariman Point');
   const [city, setCity] = useState('Mumbai');
   const [state, setState] = useState('Maharashtra');
   const [pinCode, setPinCode] = useState('400021');
   const [phone, setPhone] = useState('+91 98200 12345');
-  const [email, setEmail] = useState('accounts@newenterprise.com');
-  const [industry, setIndustry] = useState('General Trade & Services');
+  const [email, setEmail] = useState('accounts@apexenterprises.com');
 
-  // Feature Toggles
-  const [features, setFeatures] = useState({
-    gstBilling: true,
+  // Production Unit Details
+  const [hasProductionUnit, setHasProductionUnit] = useState(true);
+  const [unitName, setUnitName] = useState('Apex Manufacturing Facility Unit 1');
+  const [unitAddress, setUnitAddress] = useState('Plot 42, MIDC Industrial Area, Chakan');
+  const [unitCity, setUnitCity] = useState('Pune');
+  const [unitState, setUnitState] = useState('Maharashtra');
+  const [unitPinCode, setUnitPinCode] = useState('410501');
+
+  // Feature Unlocking Toggles
+  const [unlockedModules, setUnlockedModules] = useState({
+    billing: true,
     inventory: true,
-    brs: true,
-    financeEngine: true,
-    tdsTax: true
+    finance: true,
+    tax: true,
+    ai: true
   });
 
   // Security PIN
-  const [securityPin, setSecurityPin] = useState('');
-  const [confirmPin, setConfirmPin] = useState('');
+  const [securityPin, setSecurityPin] = useState('12345');
+  const [confirmPin, setConfirmPin] = useState('12345');
   const [pinError, setPinError] = useState<string | null>(null);
 
   if (!isOpen) return null;
@@ -59,7 +71,7 @@ export const CompanyOnboardingModal: React.FC<Props> = ({ isOpen, onClose }) => 
     e.preventDefault();
     setIsProcessingPayment(true);
     setTimeout(() => {
-      const key = `TALLY-${purchaseTier.toUpperCase()}-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+      const key = `BUZZ-${purchaseTier.toUpperCase()}-2026-${Math.floor(1000 + Math.random() * 9000)}`;
       setGeneratedKey(key);
       setIsProcessingPayment(false);
       setLicense({
@@ -68,7 +80,7 @@ export const CompanyOnboardingModal: React.FC<Props> = ({ isOpen, onClose }) => 
         isLicensed: true,
         activatedAt: new Date().toISOString()
       });
-    }, 1500);
+    }, 1200);
   };
 
   const handleApplyLicenseAndNext = () => {
@@ -87,7 +99,7 @@ export const CompanyOnboardingModal: React.FC<Props> = ({ isOpen, onClose }) => 
   const handleCompanyDetailsNext = (e: React.FormEvent) => {
     e.preventDefault();
     if (!compName.trim()) {
-      alert('Please enter a company name.');
+      alert('Please enter a company display name.');
       return;
     }
     setStep(3);
@@ -106,13 +118,18 @@ export const CompanyOnboardingModal: React.FC<Props> = ({ isOpen, onClose }) => 
 
     setPinError(null);
 
-    // Initialize Company with clean dataset
-    resetCompanyAndData({
+    // Call addCompany from context
+    addCompany({
       name: compName,
       legalName: legalName || compName,
+      entityType,
+      industry,
       fyStart,
       fyEnd,
       gstin,
+      pan,
+      tan,
+      udyamNo,
       currency,
       currencySymbol: currency === 'INR' ? '₹' : '$',
       address,
@@ -121,19 +138,24 @@ export const CompanyOnboardingModal: React.FC<Props> = ({ isOpen, onClose }) => 
       pinCode,
       phone,
       email,
-      industry,
-      securityPin,
-      lastPinChangedAt: new Date().toISOString(),
-      pinChangedQuarters: { q1: true, q2: true, q3: false, q4: false }
+      productionUnit: hasProductionUnit ? {
+        unitName,
+        address: unitAddress,
+        city: unitCity,
+        state: unitState,
+        pinCode: unitPinCode
+      } : undefined,
+      unlockedModules,
+      securityPin
     });
 
     onClose();
-    setActiveTab('accounting');
+    setActiveTab('dashboard');
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full p-6 sm:p-8 max-h-[92vh] overflow-y-auto relative shadow-2xl space-y-6">
+      <div className="bg-white dark:bg-slate-900 border border-[#D8E2EE] dark:border-slate-800 rounded-3xl max-w-3xl w-full p-6 sm:p-8 max-h-[92vh] overflow-y-auto relative shadow-2xl space-y-6">
         
         <button
           onClick={onClose}
@@ -144,13 +166,13 @@ export const CompanyOnboardingModal: React.FC<Props> = ({ isOpen, onClose }) => 
 
         {/* Wizard Progress Bar */}
         <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs font-bold text-slate-500">
-            <span className={step >= 1 ? 'text-teal-600 dark:text-teal-400' : ''}>1. License Mode</span>
-            <span className={step >= 2 ? 'text-teal-600 dark:text-teal-400' : ''}>2. Tally Company Details</span>
-            <span className={step >= 3 ? 'text-teal-600 dark:text-teal-400' : ''}>3. 5-Digit Security PIN</span>
+          <div className="flex items-center justify-between text-xs font-bold text-[#5B6878]">
+            <span className={step >= 1 ? 'text-[#163A70] dark:text-blue-400 font-bold' : ''}>1. License Mode</span>
+            <span className={step >= 2 ? 'text-[#163A70] dark:text-blue-400 font-bold' : ''}>2. Corporate & Factory Setup</span>
+            <span className={step >= 3 ? 'text-[#163A70] dark:text-blue-400 font-bold' : ''}>3. 5-Digit PIN Security</span>
           </div>
-          <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden flex">
-            <div className={`h-full bg-teal-500 transition-all duration-300 ${step === 1 ? 'w-1/3' : step === 2 ? 'w-2/3' : 'w-full'}`} />
+          <div className="h-2 bg-[#EEF3F8] dark:bg-slate-800 rounded-full overflow-hidden flex">
+            <div className={`h-full bg-[#163A70] transition-all duration-300 ${step === 1 ? 'w-1/3' : step === 2 ? 'w-2/3' : 'w-full'}`} />
           </div>
         </div>
 
@@ -158,12 +180,12 @@ export const CompanyOnboardingModal: React.FC<Props> = ({ isOpen, onClose }) => 
         {step === 1 && (
           <div className="space-y-6">
             <div>
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Key className="w-5 h-5 text-teal-600 dark:text-teal-400" />
-                Select Tally Software License & Activation Mode
+              <h2 className="text-xl font-bold text-[#1A2433] dark:text-white flex items-center gap-2">
+                <Key className="w-5 h-5 text-[#163A70]" />
+                Select BuzzFlow Platform License & Edition
               </h2>
-              <p className="text-xs text-slate-500 mt-1">
-                Choose Educational Mode or purchase an official Product License Key with live payment simulation.
+              <p className="text-xs text-[#5B6878] mt-1">
+                Choose Educational Mode or activate an official Enterprise Product Key with live payment simulation.
               </p>
             </div>
 
@@ -173,12 +195,12 @@ export const CompanyOnboardingModal: React.FC<Props> = ({ isOpen, onClose }) => 
                 onClick={() => setLicenseOption('educational')}
                 className={`p-4 rounded-2xl border text-left transition-all ${
                   licenseOption === 'educational'
-                    ? 'border-teal-500 bg-teal-50/50 dark:bg-teal-950/40 ring-2 ring-teal-500/30'
-                    : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                    ? 'border-[#2F6FED] bg-[#EEF3F8] ring-2 ring-[#2F6FED]/20'
+                    : 'border-[#D8E2EE] hover:border-slate-300'
                 }`}
               >
-                <div className="font-bold text-xs text-slate-900 dark:text-white mb-1">Educational Mode</div>
-                <div className="text-[11px] text-slate-500">Free mode for learning & testing without a product key.</div>
+                <div className="font-bold text-xs text-[#1A2433] mb-1">Educational Mode</div>
+                <div className="text-[11px] text-[#5B6878]">Free mode for learning & testing without a product key.</div>
               </button>
 
               <button
@@ -186,12 +208,12 @@ export const CompanyOnboardingModal: React.FC<Props> = ({ isOpen, onClose }) => 
                 onClick={() => setLicenseOption('key')}
                 className={`p-4 rounded-2xl border text-left transition-all ${
                   licenseOption === 'key'
-                    ? 'border-teal-500 bg-teal-50/50 dark:bg-teal-950/40 ring-2 ring-teal-500/30'
-                    : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                    ? 'border-[#2F6FED] bg-[#EEF3F8] ring-2 ring-[#2F6FED]/20'
+                    : 'border-[#D8E2EE] hover:border-slate-300'
                 }`}
               >
-                <div className="font-bold text-xs text-slate-900 dark:text-white mb-1">Use Existing Key</div>
-                <div className="text-[11px] text-slate-500">Enter a 16-character license key you already own.</div>
+                <div className="font-bold text-xs text-[#1A2433] mb-1">Use Existing Key</div>
+                <div className="text-[11px] text-[#5B6878]">Enter a 16-character license key you already own.</div>
               </button>
 
               <button
@@ -199,52 +221,52 @@ export const CompanyOnboardingModal: React.FC<Props> = ({ isOpen, onClose }) => 
                 onClick={() => setLicenseOption('purchase')}
                 className={`p-4 rounded-2xl border text-left transition-all ${
                   licenseOption === 'purchase'
-                    ? 'border-teal-500 bg-teal-50/50 dark:bg-teal-950/40 ring-2 ring-teal-500/30'
-                    : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                    ? 'border-[#2F6FED] bg-[#EEF3F8] ring-2 ring-[#2F6FED]/20'
+                    : 'border-[#D8E2EE] hover:border-slate-300'
                 }`}
               >
-                <div className="font-bold text-xs text-slate-900 dark:text-white mb-1 flex items-center gap-1">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Purchase License
+                <div className="font-bold text-xs text-[#1A2433] mb-1 flex items-center gap-1">
+                  <Sparkles className="w-3.5 h-3.5 text-[#D9A227]" /> Purchase License
                 </div>
-                <div className="text-[11px] text-slate-500">Buy Silver or Gold multi-user edition with payment gateway.</div>
+                <div className="text-[11px] text-[#5B6878]">Buy Silver or Gold multi-user edition with payment gateway.</div>
               </button>
             </div>
 
             {/* Sub-section for Existing Key */}
             {licenseOption === 'key' && (
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-2">
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+              <div className="p-4 rounded-2xl bg-[#EEF3F8] border border-[#D8E2EE] space-y-2">
+                <label className="block text-xs font-bold text-[#1A2433]">
                   Enter 16-Character Product Key
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. TALLY-GOLD-2026-X892"
+                  placeholder="e.g. BUZZ-GOLD-2026-X892"
                   value={existingKey}
                   onChange={e => setExistingKey(e.target.value.toUpperCase())}
-                  className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-teal-500"
+                  className="w-full bg-white border border-[#D8E2EE] rounded-xl px-3 py-2 text-xs font-mono font-bold text-[#1A2433] outline-none"
                 />
               </div>
             )}
 
             {/* Sub-section for Purchasing License */}
             {licenseOption === 'purchase' && !generatedKey && (
-              <form onSubmit={handleSimulatePayment} className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-3">
-                  <span className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+              <form onSubmit={handleSimulatePayment} className="p-5 rounded-2xl bg-[#EEF3F8] border border-[#D8E2EE] space-y-4">
+                <div className="flex items-center justify-between border-b border-[#D8E2EE] pb-3">
+                  <span className="text-xs font-bold text-[#1A2433] uppercase tracking-wider">
                     Select Software Edition
                   </span>
                   <div className="flex gap-2">
                     <button
                       type="button"
                       onClick={() => setPurchaseTier('silver')}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${purchaseTier === 'silver' ? 'bg-slate-900 text-white dark:bg-teal-600' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'}`}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${purchaseTier === 'silver' ? 'bg-[#163A70] text-white' : 'bg-white text-[#1A2433] border border-[#D8E2EE]'}`}
                     >
                       Silver Single-User (₹18,000)
                     </button>
                     <button
                       type="button"
                       onClick={() => setPurchaseTier('gold')}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${purchaseTier === 'gold' ? 'bg-slate-900 text-white dark:bg-teal-600' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'}`}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${purchaseTier === 'gold' ? 'bg-[#163A70] text-white' : 'bg-white text-[#1A2433] border border-[#D8E2EE]'}`}
                     >
                       Gold Multi-User (₹54,000)
                     </button>
@@ -252,42 +274,27 @@ export const CompanyOnboardingModal: React.FC<Props> = ({ isOpen, onClose }) => 
                 </div>
 
                 <div className="space-y-3">
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                    Payment Method
+                  <label className="block text-xs font-bold text-[#1A2433]">
+                    Payment Gateway
                   </label>
-                  <div className="flex gap-3">
-                    <label className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300 cursor-pointer font-semibold">
+                  <div className="flex gap-3 text-xs font-semibold">
+                    <label className="flex items-center gap-2 cursor-pointer">
                       <input type="radio" name="payMethod" checked={paymentMethod === 'upi'} onChange={() => setPaymentMethod('upi')} />
-                      UPI / GPay / PhonePe
+                      UPI / PhonePe / GPay
                     </label>
-                    <label className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300 cursor-pointer font-semibold">
+                    <label className="flex items-center gap-2 cursor-pointer">
                       <input type="radio" name="payMethod" checked={paymentMethod === 'card'} onChange={() => setPaymentMethod('card')} />
                       Credit / Debit Card
-                    </label>
-                    <label className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300 cursor-pointer font-semibold">
-                      <input type="radio" name="payMethod" checked={paymentMethod === 'netbanking'} onChange={() => setPaymentMethod('netbanking')} />
-                      NetBanking
                     </label>
                   </div>
 
                   {paymentMethod === 'upi' && (
                     <input
                       type="text"
-                      placeholder="Enter VPA / UPI ID (e.g. user@okaxis)"
+                      placeholder="Enter UPI VPA (e.g. apex@okicici)"
                       value={upiId}
                       onChange={e => setUpiId(e.target.value)}
-                      className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-mono text-slate-900 dark:text-white outline-none"
-                      required
-                    />
-                  )}
-
-                  {paymentMethod === 'card' && (
-                    <input
-                      type="text"
-                      placeholder="Card Number (4000 1234 5678 9010)"
-                      value={cardNumber}
-                      onChange={e => setCardNumber(e.target.value)}
-                      className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-mono text-slate-900 dark:text-white outline-none"
+                      className="w-full bg-white border border-[#D8E2EE] rounded-xl px-3 py-2 text-xs font-mono outline-none"
                       required
                     />
                   )}
@@ -296,21 +303,21 @@ export const CompanyOnboardingModal: React.FC<Props> = ({ isOpen, onClose }) => 
                 <button
                   type="submit"
                   disabled={isProcessingPayment}
-                  className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md transition-all"
+                  className="w-full py-2.5 rounded-xl bg-[#16B8A6] hover:bg-[#163A70] text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md transition-all"
                 >
                   <CreditCard className="w-4 h-4" />
-                  <span>{isProcessingPayment ? 'Processing Live Payment...' : `Pay ${purchaseTier === 'gold' ? '₹54,000' : '₹18,000'} & Generate Product Key`}</span>
+                  <span>{isProcessingPayment ? 'Processing Live Payment...' : `Pay ${purchaseTier === 'gold' ? '₹54,000' : '₹18,000'} & Issue License`}</span>
                 </button>
               </form>
             )}
 
             {generatedKey && (
-              <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 text-xs space-y-2">
+              <div className="p-4 rounded-2xl bg-[#16B8A6]/10 border border-[#16B8A6]/30 text-[#163A70] text-xs space-y-2">
                 <div className="flex items-center gap-2 font-bold">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                  <span>Payment Successful! License Generated & Activated</span>
+                  <CheckCircle2 className="w-5 h-5 text-[#16B8A6]" />
+                  <span>Payment Confirmed! License Key Generated</span>
                 </div>
-                <p className="font-mono font-bold text-sm bg-emerald-100 dark:bg-emerald-900/80 p-2 rounded-xl text-center text-emerald-900 dark:text-emerald-200">
+                <p className="font-mono font-bold text-sm bg-white p-2.5 rounded-xl text-center text-[#163A70] border border-[#D8E2EE]">
                   {generatedKey}
                 </p>
               </div>
@@ -320,156 +327,163 @@ export const CompanyOnboardingModal: React.FC<Props> = ({ isOpen, onClose }) => 
               <button
                 type="button"
                 onClick={handleApplyLicenseAndNext}
-                className="px-6 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center gap-2 shadow-md transition-all"
+                className="px-6 py-2.5 rounded-xl bg-[#163A70] hover:bg-[#2F6FED] text-white font-bold text-xs flex items-center gap-2 shadow-md transition-all"
               >
-                <span>Continue to Company Creation</span>
+                <span>Continue to Company Details</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
           </div>
         )}
 
-        {/* STEP 2: Tally Company Details & Features */}
+        {/* STEP 2: Elaborated Company Setup */}
         {step === 2 && (
-          <form onSubmit={handleCompanyDetailsNext} className="space-y-5">
+          <form onSubmit={handleCompanyDetailsNext} className="space-y-5 text-xs">
             <div>
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Building2 className="w-5 h-5 text-teal-600 dark:text-teal-400" />
-                Create Company Details (Tally Software Format)
+              <h2 className="text-xl font-bold text-[#1A2433] dark:text-white flex items-center gap-2">
+                <Building2 className="w-5 h-5 text-[#163A70]" />
+                Company Corporate & Production Setup
               </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Configure your organization details, financial year, and feature modules.
+              <p className="text-xs text-[#5B6878] mt-0.5">
+                Register company legal names, 25 entity types, production units, official tax identifiers, and module preferences.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+            {/* Basic & Legal Names */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Company Name *
-                </label>
+                <label className="block font-bold text-[#1A2433] mb-1">Company Trade / Display Name *</label>
                 <input
                   type="text"
                   value={compName}
                   onChange={e => setCompName(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white font-semibold outline-none focus:ring-2 focus:ring-teal-500"
+                  className="w-full bg-[#EEF3F8] border border-[#D8E2EE] rounded-xl px-3 py-2 font-bold text-[#1A2433] outline-none"
                   required
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Legal / Mailing Name
-                </label>
+                <label className="block font-bold text-[#1A2433] mb-1">Legal Registered Name *</label>
                 <input
                   type="text"
                   value={legalName}
                   onChange={e => setLegalName(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-teal-500"
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Financial Year From
-                </label>
-                <input
-                  type="date"
-                  value={fyStart}
-                  onChange={e => setFyStart(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white outline-none"
+                  className="w-full bg-[#EEF3F8] border border-[#D8E2EE] rounded-xl px-3 py-2 text-[#1A2433] outline-none"
                   required
                 />
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Books Beginning From (FY End)
-                </label>
-                <input
-                  type="date"
-                  value={fyEnd}
-                  onChange={e => setFyEnd(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white outline-none"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  GSTIN / Tax ID
-                </label>
-                <input
-                  type="text"
-                  value={gstin}
-                  onChange={e => setGstin(e.target.value)}
-                  placeholder="27AABCU9603R1ZM"
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 font-mono text-slate-900 dark:text-white outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Base Currency
-                </label>
-                <select
-                  value={currency}
-                  onChange={e => {
-                    const val = e.target.value as 'INR' | 'USD';
-                    setCurrency(val);
-                    setCurrencySymbol(val === 'INR' ? '₹' : '$');
-                  }}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white outline-none"
-                >
-                  <option value="INR">Indian Rupee (INR ₹)</option>
-                  <option value="USD">US Dollar (USD $)</option>
-                  <option value="EUR">Euro (EUR €)</option>
-                  <option value="GBP">British Pound (GBP £)</option>
-                </select>
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Address & Location Details
-                </label>
-                <input
-                  type="text"
-                  value={address}
-                  onChange={e => setAddress(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white outline-none mb-2"
-                />
-                <div className="grid grid-cols-3 gap-2">
-                  <input type="text" placeholder="City" value={city} onChange={e => setCity(e.target.value)} className="bg-slate-50 dark:bg-slate-800 border rounded-xl px-3 py-1.5" />
-                  <input type="text" placeholder="State" value={state} onChange={e => setState(e.target.value)} className="bg-slate-50 dark:bg-slate-800 border rounded-xl px-3 py-1.5" />
-                  <input type="text" placeholder="PIN Code" value={pinCode} onChange={e => setPinCode(e.target.value)} className="bg-slate-50 dark:bg-slate-800 border rounded-xl px-3 py-1.5" />
-                </div>
               </div>
             </div>
 
-            {/* Features Selection Grid */}
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-3">
-              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider block">
-                Select Features & Modules to Enable
+            {/* Entity Type (25 choices) & Industry Sector (25 choices) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block font-bold text-[#1A2433] mb-1">Business Entity Type (25 Legal Types)</label>
+                <select
+                  value={entityType}
+                  onChange={e => setEntityType(e.target.value)}
+                  className="w-full bg-[#EEF3F8] border border-[#D8E2EE] rounded-xl px-3 py-2 font-semibold text-[#1A2433] outline-none"
+                >
+                  {INDIAN_ENTITY_TYPES.map(t => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-bold text-[#1A2433] mb-1">Industry Sector (25 Sectors)</label>
+                <select
+                  value={industry}
+                  onChange={e => setIndustry(e.target.value)}
+                  className="w-full bg-[#EEF3F8] border border-[#D8E2EE] rounded-xl px-3 py-2 font-semibold text-[#1A2433] outline-none"
+                >
+                  {INDUSTRY_SECTORS.map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Official Identifiers: GSTIN, PAN, TAN, UDYAM */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div>
+                <label className="block font-bold text-[#1A2433] mb-1">GSTIN No.</label>
+                <input type="text" value={gstin} onChange={e => setGstin(e.target.value)} className="w-full bg-[#EEF3F8] border border-[#D8E2EE] rounded-xl px-3 py-1.5 font-mono text-[#1A2433]" />
+              </div>
+              <div>
+                <label className="block font-bold text-[#1A2433] mb-1">PAN No.</label>
+                <input type="text" value={pan} onChange={e => setPan(e.target.value)} className="w-full bg-[#EEF3F8] border border-[#D8E2EE] rounded-xl px-3 py-1.5 font-mono text-[#1A2433]" />
+              </div>
+              <div>
+                <label className="block font-bold text-[#1A2433] mb-1">TAN No.</label>
+                <input type="text" value={tan} onChange={e => setTan(e.target.value)} className="w-full bg-[#EEF3F8] border border-[#D8E2EE] rounded-xl px-3 py-1.5 font-mono text-[#1A2433]" />
+              </div>
+              <div>
+                <label className="block font-bold text-[#1A2433] mb-1">Udyam MSME No.</label>
+                <input type="text" value={udyamNo} onChange={e => setUdyamNo(e.target.value)} className="w-full bg-[#EEF3F8] border border-[#D8E2EE] rounded-xl px-3 py-1.5 font-mono text-[#1A2433]" />
+              </div>
+            </div>
+
+            {/* Primary Registered Office Address */}
+            <div>
+              <label className="block font-bold text-[#1A2433] mb-1">Head Office Address</label>
+              <input type="text" value={address} onChange={e => setAddress(e.target.value)} className="w-full bg-[#EEF3F8] border border-[#D8E2EE] rounded-xl px-3 py-2 text-[#1A2433] mb-2" />
+              <div className="grid grid-cols-3 gap-2">
+                <input type="text" placeholder="City" value={city} onChange={e => setCity(e.target.value)} className="bg-[#EEF3F8] border border-[#D8E2EE] rounded-xl px-3 py-1.5" />
+                <input type="text" placeholder="State" value={state} onChange={e => setState(e.target.value)} className="bg-[#EEF3F8] border border-[#D8E2EE] rounded-xl px-3 py-1.5" />
+                <input type="text" placeholder="PIN Code" value={pinCode} onChange={e => setPinCode(e.target.value)} className="bg-[#EEF3F8] border border-[#D8E2EE] rounded-xl px-3 py-1.5" />
+              </div>
+            </div>
+
+            {/* Production Unit / Factory / Warehouse Details */}
+            <div className="p-4 rounded-2xl bg-[#EEF3F8] border border-[#D8E2EE] space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-[#163A70] flex items-center gap-2">
+                  <Factory className="w-4 h-4 text-[#16B8A6]" /> Production Unit / Factory Details
+                </span>
+                <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer">
+                  <input type="checkbox" checked={hasProductionUnit} onChange={e => setHasProductionUnit(e.target.checked)} className="accent-[#163A70]" />
+                  <span>Has Separate Production Plant</span>
+                </label>
+              </div>
+
+              {hasProductionUnit && (
+                <div className="space-y-2 pt-2 border-t border-[#D8E2EE]">
+                  <input type="text" placeholder="Production Facility Name" value={unitName} onChange={e => setUnitName(e.target.value)} className="w-full bg-white border border-[#D8E2EE] rounded-xl px-3 py-1.5 font-medium" />
+                  <input type="text" placeholder="Factory Address" value={unitAddress} onChange={e => setUnitAddress(e.target.value)} className="w-full bg-white border border-[#D8E2EE] rounded-xl px-3 py-1.5 font-medium" />
+                  <div className="grid grid-cols-3 gap-2">
+                    <input type="text" placeholder="City" value={unitCity} onChange={e => setUnitCity(e.target.value)} className="bg-white border border-[#D8E2EE] rounded-xl px-3 py-1.5" />
+                    <input type="text" placeholder="State" value={unitState} onChange={e => setUnitState(e.target.value)} className="bg-white border border-[#D8E2EE] rounded-xl px-3 py-1.5" />
+                    <input type="text" placeholder="PIN Code" value={unitPinCode} onChange={e => setUnitPinCode(e.target.value)} className="bg-white border border-[#D8E2EE] rounded-xl px-3 py-1.5" />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Module Unlocking Preferences */}
+            <div className="p-4 rounded-2xl bg-[#EEF3F8] border border-[#D8E2EE] space-y-2">
+              <span className="text-xs font-bold text-[#163A70] uppercase tracking-wider block">
+                Unlock Module Access Rights
               </span>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={features.gstBilling} onChange={e => setFeatures(f => ({ ...f, gstBilling: e.target.checked }))} className="accent-teal-600" />
-                  <span>GST Invoicing & Billing</span>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs font-medium">
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input type="checkbox" checked={unlockedModules.billing} onChange={e => setUnlockedModules(u => ({ ...u, billing: e.target.checked }))} className="accent-[#163A70]" />
+                  <span>GST Billing</span>
                 </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={features.inventory} onChange={e => setFeatures(f => ({ ...f, inventory: e.target.checked }))} className="accent-teal-600" />
-                  <span>Inventory Control</span>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input type="checkbox" checked={unlockedModules.inventory} onChange={e => setUnlockedModules(u => ({ ...u, inventory: e.target.checked }))} className="accent-[#163A70]" />
+                  <span>Inventory</span>
                 </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={features.brs} onChange={e => setFeatures(f => ({ ...f, brs: e.target.checked }))} className="accent-teal-600" />
-                  <span>Bank Reconciliation (BRS)</span>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input type="checkbox" checked={unlockedModules.finance} onChange={e => setUnlockedModules(u => ({ ...u, finance: e.target.checked }))} className="accent-[#163A70]" />
+                  <span>Finance</span>
                 </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={features.financeEngine} onChange={e => setFeatures(f => ({ ...f, financeEngine: e.target.checked }))} className="accent-teal-600" />
-                  <span>Financial Health Engine</span>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input type="checkbox" checked={unlockedModules.tax} onChange={e => setUnlockedModules(u => ({ ...u, tax: e.target.checked }))} className="accent-[#163A70]" />
+                  <span>TDS / BRS</span>
                 </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={features.tdsTax} onChange={e => setFeatures(f => ({ ...f, tdsTax: e.target.checked }))} className="accent-teal-600" />
-                  <span>TDS & Tax Computation</span>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input type="checkbox" checked={unlockedModules.ai} onChange={e => setUnlockedModules(u => ({ ...u, ai: e.target.checked }))} className="accent-[#163A70]" />
+                  <span>AI Accountant</span>
                 </label>
               </div>
             </div>
@@ -478,15 +492,15 @@ export const CompanyOnboardingModal: React.FC<Props> = ({ isOpen, onClose }) => 
               <button
                 type="button"
                 onClick={() => setStep(1)}
-                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300"
+                className="px-4 py-2 rounded-xl border border-[#D8E2EE] text-xs font-bold text-[#5B6878]"
               >
                 Back
               </button>
               <button
                 type="submit"
-                className="px-6 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center gap-2 shadow-md transition-all"
+                className="px-6 py-2.5 rounded-xl bg-[#163A70] hover:bg-[#2F6FED] text-white font-bold text-xs flex items-center gap-2 shadow-md transition-all"
               >
-                <span>Proceed to Security PIN Setup</span>
+                <span>Proceed to 5-Digit Security PIN</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
@@ -497,19 +511,19 @@ export const CompanyOnboardingModal: React.FC<Props> = ({ isOpen, onClose }) => 
         {step === 3 && (
           <form onSubmit={handleFinalRegisterCompany} className="space-y-6">
             <div>
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Lock className="w-5 h-5 text-teal-600 dark:text-teal-400" />
-                Set Mandatory 5-Digit Security PIN
+              <h2 className="text-xl font-bold text-[#1A2433] dark:text-white flex items-center gap-2">
+                <Lock className="w-5 h-5 text-[#163A70]" />
+                Set 5-Digit Security PIN
               </h2>
-              <p className="text-xs text-slate-500 mt-1">
-                Protect company ledgers, voucher alterations, and financial reports with a 5-digit security PIN.
+              <p className="text-xs text-[#5B6878] mt-1">
+                Protect company ledgers, vouchers, and financial records with a mandatory 5-digit PIN.
               </p>
             </div>
 
-            <div className="p-6 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-4 max-w-md mx-auto text-center">
+            <div className="p-6 rounded-2xl bg-[#EEF3F8] border border-[#D8E2EE] space-y-4 max-w-md mx-auto text-center">
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
-                  Enter 5-Digit Security PIN
+                <label className="block text-xs font-bold text-[#1A2433] mb-2">
+                  Enter 5-Digit PIN
                 </label>
                 <input
                   type="password"
@@ -517,14 +531,14 @@ export const CompanyOnboardingModal: React.FC<Props> = ({ isOpen, onClose }) => 
                   value={securityPin}
                   onChange={e => setSecurityPin(e.target.value.replace(/\D/g, ''))}
                   placeholder="• • • • •"
-                  className="w-40 text-center font-mono text-2xl tracking-[0.5em] font-bold bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-teal-500"
+                  className="w-44 text-center font-mono text-2xl tracking-[0.5em] font-bold bg-white border border-[#D8E2EE] rounded-2xl px-4 py-3 outline-none"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
-                  Confirm 5-Digit Security PIN
+                <label className="block text-xs font-bold text-[#1A2433] mb-2">
+                  Confirm 5-Digit PIN
                 </label>
                 <input
                   type="password"
@@ -532,20 +546,20 @@ export const CompanyOnboardingModal: React.FC<Props> = ({ isOpen, onClose }) => 
                   value={confirmPin}
                   onChange={e => setConfirmPin(e.target.value.replace(/\D/g, ''))}
                   placeholder="• • • • •"
-                  className="w-40 text-center font-mono text-2xl tracking-[0.5em] font-bold bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-teal-500"
+                  className="w-44 text-center font-mono text-2xl tracking-[0.5em] font-bold bg-white border border-[#D8E2EE] rounded-2xl px-4 py-3 outline-none"
                   required
                 />
               </div>
 
               {pinError && (
-                <div className="p-3 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 font-bold text-xs border border-rose-500/20">
+                <div className="p-3 rounded-xl bg-[#E53935]/10 text-[#E53935] font-bold text-xs border border-[#E53935]/20">
                   {pinError}
                 </div>
               )}
 
-              <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center justify-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                <span>PIN must be changed quarterly according to ICAI security guidelines.</span>
+              <div className="text-[11px] text-[#5B6878] flex items-center justify-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-[#16B8A6]" />
+                <span>PIN is encrypted and stored locally in security vault.</span>
               </div>
             </div>
 
@@ -553,16 +567,16 @@ export const CompanyOnboardingModal: React.FC<Props> = ({ isOpen, onClose }) => 
               <button
                 type="button"
                 onClick={() => setStep(2)}
-                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300"
+                className="px-4 py-2 rounded-xl border border-[#D8E2EE] text-xs font-bold text-[#5B6878]"
               >
                 Back
               </button>
               <button
                 type="submit"
-                className="px-8 py-3 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-lg transition-all flex items-center gap-2"
+                className="px-8 py-3 rounded-2xl bg-[#163A70] hover:bg-[#2F6FED] text-white font-bold text-xs shadow-lg transition-all flex items-center gap-2"
               >
                 <Check className="w-4 h-4" />
-                <span>Register Company & Unlock Gateway</span>
+                <span>Create Company & Unlock Dashboard</span>
               </button>
             </div>
           </form>
@@ -572,3 +586,4 @@ export const CompanyOnboardingModal: React.FC<Props> = ({ isOpen, onClose }) => 
     </div>
   );
 };
+

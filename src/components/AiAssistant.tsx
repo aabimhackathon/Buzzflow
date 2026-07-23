@@ -9,7 +9,7 @@ interface Message {
 }
 
 export const AiAssistant: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
-  const { brand, company, setPendingVoucherDraft, setActiveTab } = useAccounting();
+  const { brand, activeCompany, setPendingVoucherDraft, setActiveTab } = useAccounting();
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
@@ -44,8 +44,8 @@ export const AiAssistant: React.FC<{ isOpen: boolean; onClose: () => void }> = (
         body: JSON.stringify({
           prompt: textToSend,
           brandName: brand.name,
-          currencySymbol: company.currencySymbol,
-          companyContext: { name: company.name, gstin: company.gstin }
+          currencySymbol: activeCompany.currencySymbol,
+          companyContext: { name: activeCompany.name, gstin: activeCompany.gstin }
         })
       });
 
@@ -131,7 +131,7 @@ export const AiAssistant: React.FC<{ isOpen: boolean; onClose: () => void }> = (
                     {msg.suggestedVoucher.items?.map((item: any, i: number) => (
                       <div key={i} className="flex items-center justify-between bg-slate-50 dark:bg-slate-800 p-1.5 rounded font-mono">
                         <span>{item.drCr} {item.ledgerName}</span>
-                        <span className="font-semibold">{company.currencySymbol}{item.amount?.toLocaleString()}</span>
+                        <span className="font-semibold">{activeCompany.currencySymbol}{item.amount?.toLocaleString()}</span>
                       </div>
                     ))}
                   </div>

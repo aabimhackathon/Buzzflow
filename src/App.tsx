@@ -4,6 +4,7 @@ import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 import { AiAssistant } from './components/AiAssistant';
 import { DashboardView } from './components/dashboard/DashboardView';
+import { CompanyPortalGate } from './components/company/CompanyPortalGate';
 
 import { CompanySetupView } from './components/company/CompanySetupView';
 import { AccountingEngineView } from './components/accounting/AccountingEngineView';
@@ -13,8 +14,13 @@ import { IntelligenceEngineView } from './components/intelligence/IntelligenceEn
 import { SchemesEngineView } from './components/schemes/SchemesEngineView';
 
 const MainContent: React.FC = () => {
-  const { activeTab } = useAccounting();
+  const { activeTab, activeCompanyId, isCompanyAuthenticated } = useAccounting();
   const [isAiOpen, setIsAiOpen] = useState(false);
+
+  // If company is not selected or PIN is not authenticated, show Company Gate Landing Page
+  if (!activeCompanyId || !isCompanyAuthenticated) {
+    return <CompanyPortalGate />;
+  }
 
   const renderActiveView = () => {
     switch (activeTab) {
@@ -23,12 +29,15 @@ const MainContent: React.FC = () => {
       case 'accounting':
       case 'daybook':
       case 'new-voucher':
-      case 'billing':
       case 'inventory':
       case 'coa':
       case 'reports':
       case 'tax-brs':
+      case 'banking-cash':
+      case 'debtors-creditors':
         return <AccountingEngineView />;
+      case 'billing':
+        return <AccountingEngineView defaultSubTab="billing" />;
       case 'finance':
         return <FinanceEngineView />;
       case 'memory':
@@ -45,7 +54,7 @@ const MainContent: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans selection:bg-teal-500 selection:text-white">
+    <div className="min-h-screen bg-[#F7F9FC] text-[#1A2433] flex flex-col font-sans selection:bg-[#16B8A6] selection:text-white">
       {/* Header Bar */}
       <Header onToggleAi={() => setIsAiOpen(prev => !prev)} isAiOpen={isAiOpen} />
 

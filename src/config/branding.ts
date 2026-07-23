@@ -33,16 +33,16 @@ export const BRANDS: Record<BrandKey, BrandConfig> = {
     tagline: 'Intelligent Double-Entry Financial Engine & GST Suite',
     shortDesc: 'Automated double-entry ledgers, live voucher validation, and AI-powered GST compliance.',
     logoIcon: 'Zap',
-    badgeText: 'Enterprise AI Edition',
-    primaryColor: '#C8A96B', // Heritage Gold
-    primaryBg: 'bg-teal-600',
-    accentColor: 'emerald',
-    gradient: 'from-slate-900 to-slate-800',
+    badgeText: 'Enterprise Edition',
+    primaryColor: '#163A70', // Deep Enterprise Blue
+    primaryBg: 'bg-[#163A70]',
+    accentColor: '#2F6FED', // Royal Blue
+    gradient: 'from-[#163A70] to-[#2F6FED]',
     defaultCurrency: 'INR',
     currencySymbol: '₹',
-    supportEmail: 'support@buzzflow.ai',
-    website: 'https://buzzflow.ai',
-    footerText: '© 2026 Buzzflow AI Technologies. Real-time Double-Entry Ledger Engine.',
+    supportEmail: 'support@buzzflow.com',
+    website: 'https://buzzflow.com',
+    footerText: '© 2026 Buzzflow Technologies. Real-time Double-Entry Ledger Engine.',
     aiName: 'Buzzflow AI Accountant',
     aiPromptPrefix: 'You are Buzzflow AI Accountant, an expert in Indian Accounting Standards (Ind AS), GST compliance, and double-entry bookkeeping.',
     features: [

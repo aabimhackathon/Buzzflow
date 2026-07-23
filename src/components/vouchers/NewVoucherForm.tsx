@@ -3,7 +3,7 @@ import { useAccounting } from '../../context/AccountingContext';
 import { VOUCHER_TYPES } from '../../lib/accounting/default-coa';
 import { generateVoucherNumber, validateVoucher } from '../../lib/accounting/double-entry';
 import { VoucherItem, VoucherType } from '../../lib/accounting/types';
-import { PlusCircle, Trash2, CheckCircle2, AlertTriangle, Wand2, ArrowLeft, Send, Sparkles } from 'lucide-react';
+import { PlusCircle, Trash2, CheckCircle2, AlertTriangle, Wand2, ArrowLeft, Send, Sparkles, AlertCircle } from 'lucide-react';
 
 export const NewVoucherForm: React.FC = () => {
   const { 
@@ -251,8 +251,14 @@ export const NewVoucherForm: React.FC = () => {
         {/* Particulars Grid Table */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
-              Double-Entry Particulars Table
+            <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-2">
+              <span>Double-Entry Particulars Table</span>
+              {validation.conflictingItemIds.size > 0 && (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border border-rose-300 dark:border-rose-800 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  {validation.conflictingItemIds.size} Conflict(s) Detected
+                </span>
+              )}
             </h3>
 
             <button
@@ -280,10 +286,20 @@ export const NewVoucherForm: React.FC = () => {
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono">
                 {items.map((item, idx) => {
                   const selectedLedger = ledgers.find(l => l.id === item.ledgerId);
+                  const isConflicting = validation.conflictingItemIds.has(item.id);
+                  const conflicts = validation.itemConflicts[item.id] || [];
+
                   return (
-                    <tr key={item.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
+                    <tr 
+                      key={item.id} 
+                      className={`transition-colors ${
+                        isConflicting 
+                          ? 'bg-rose-50/90 dark:bg-rose-950/40' 
+                          : 'hover:bg-slate-50/60 dark:hover:bg-slate-800/40'
+                      }`}
+                    >
                       {/* Dr / Cr */}
-                      <td className="py-2.5 px-3">
+                      <td className="py-2.5 px-3 align-top">
                         <select
                           value={item.drCr}
                           onChange={e => handleItemChange(idx, 'drCr', e.target.value)}
@@ -299,27 +315,45 @@ export const NewVoucherForm: React.FC = () => {
                       </td>
 
                       {/* Particulars Ledger Dropdown */}
-                      <td className="py-2.5 px-3">
+                      <td className="py-2.5 px-3 align-top">
                         <select
                           value={item.ledgerId}
                           onChange={e => handleItemChange(idx, 'ledgerId', e.target.value)}
-                          className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-white font-sans font-medium outline-none focus:ring-2 focus:ring-teal-500"
+                          className={`w-full border rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-white font-sans font-medium outline-none transition-all ${
+                            isConflicting 
+                              ? 'bg-rose-100/60 dark:bg-rose-900/40 border-rose-400 dark:border-rose-700 focus:ring-2 focus:ring-rose-500' 
+                              : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-teal-500'
+                          }`}
                         >
+                          <option value="">-- Select Account Ledger --</option>
                           {ledgers.map(l => (
                             <option key={l.id} value={l.id}>
                               {l.code} - {l.name} [{l.groupName}] (Bal: {company.currencySymbol}{l.currentBalance.toLocaleString()})
                             </option>
                           ))}
                         </select>
+
                         {selectedLedger && (
                           <span className="text-[10px] text-slate-400 font-sans block mt-0.5">
                             Category: {selectedLedger.category} | Nature: {selectedLedger.nature}
                           </span>
                         )}
+
+                        {/* Real-time Conflict Warnings on Row */}
+                        {isConflicting && conflicts.length > 0 && (
+                          <div className="mt-1 space-y-0.5">
+                            {conflicts.map((conf, cIdx) => (
+                              <span key={cIdx} className="text-[10px] font-bold font-sans text-rose-600 dark:text-rose-300 flex items-center gap-1">
+                                <AlertTriangle className="w-3 h-3 text-rose-500 shrink-0" />
+                                {conf}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </td>
 
                       {/* Debit Column */}
-                      <td className="py-2.5 px-3">
+                      <td className="py-2.5 px-3 align-top">
                         {item.drCr === 'Dr' ? (
                           <input
                             type="number"
@@ -328,7 +362,11 @@ export const NewVoucherForm: React.FC = () => {
                             value={item.amount || ''}
                             onChange={e => handleItemChange(idx, 'amount', parseFloat(e.target.value) || 0)}
                             placeholder="0.00"
-                            className="w-full text-right bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-white font-mono font-bold outline-none focus:ring-2 focus:ring-teal-500"
+                            className={`w-full text-right font-mono font-bold rounded-lg px-3 py-1.5 text-xs outline-none transition-all ${
+                              item.amount <= 0 || isConflicting
+                                ? 'bg-rose-100/60 dark:bg-rose-900/40 border border-rose-400 dark:border-rose-700 text-rose-900 dark:text-rose-100 focus:ring-2 focus:ring-rose-500'
+                                : 'bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500'
+                            }`}
                             required
                           />
                         ) : (
@@ -337,7 +375,7 @@ export const NewVoucherForm: React.FC = () => {
                       </td>
 
                       {/* Credit Column */}
-                      <td className="py-2.5 px-3">
+                      <td className="py-2.5 px-3 align-top">
                         {item.drCr === 'Cr' ? (
                           <input
                             type="number"
@@ -346,7 +384,11 @@ export const NewVoucherForm: React.FC = () => {
                             value={item.amount || ''}
                             onChange={e => handleItemChange(idx, 'amount', parseFloat(e.target.value) || 0)}
                             placeholder="0.00"
-                            className="w-full text-right bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-white font-mono font-bold outline-none focus:ring-2 focus:ring-indigo-500"
+                            className={`w-full text-right font-mono font-bold rounded-lg px-3 py-1.5 text-xs outline-none transition-all ${
+                              item.amount <= 0 || isConflicting
+                                ? 'bg-rose-100/60 dark:bg-rose-900/40 border border-rose-400 dark:border-rose-700 text-rose-900 dark:text-rose-100 focus:ring-2 focus:ring-rose-500'
+                                : 'bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500'
+                            }`}
                             required
                           />
                         ) : (
@@ -355,7 +397,7 @@ export const NewVoucherForm: React.FC = () => {
                       </td>
 
                       {/* Memo Line */}
-                      <td className="py-2.5 px-3 font-sans">
+                      <td className="py-2.5 px-3 font-sans align-top">
                         <input
                           type="text"
                           value={item.narration || ''}
@@ -366,11 +408,11 @@ export const NewVoucherForm: React.FC = () => {
                       </td>
 
                       {/* Delete */}
-                      <td className="py-2.5 px-3 text-center">
+                      <td className="py-2.5 px-3 text-center align-top">
                         <button
                           type="button"
                           onClick={() => handleRemoveItem(idx)}
-                          className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950 transition-colors"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950 transition-colors"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -416,7 +458,7 @@ export const NewVoucherForm: React.FC = () => {
               ) : (
                 <>
                   <AlertTriangle className="w-5 h-5 text-rose-600 dark:text-rose-400" />
-                  <span>Imbalanced Entry: Difference of {company.currencySymbol}{validation.difference.toFixed(2)}</span>
+                  <span>Double-Entry Validation Issues Detected</span>
                 </>
               )}
             </div>
@@ -428,11 +470,16 @@ export const NewVoucherForm: React.FC = () => {
           </div>
 
           {validation.errors.length > 0 && (
-            <ul className="mt-2 space-y-1 text-[11px] text-rose-700 dark:text-rose-300 list-disc list-inside">
-              {validation.errors.map((err, i) => (
-                <li key={i}>{err}</li>
-              ))}
-            </ul>
+            <div className="mt-3 pt-2 border-t border-rose-200 dark:border-rose-800/80">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-rose-800 dark:text-rose-200 block mb-1">
+                Real-Time Validation Warnings (Fix before saving):
+              </span>
+              <ul className="space-y-1 text-[11px] text-rose-700 dark:text-rose-300 list-disc list-inside font-medium">
+                {validation.errors.map((err, i) => (
+                  <li key={i}>{err}</li>
+                ))}
+              </ul>
+            </div>
           )}
         </div>
 
@@ -448,7 +495,7 @@ export const NewVoucherForm: React.FC = () => {
           <button
             type="submit"
             disabled={!validation.isValid}
-            className="px-6 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-bold text-xs shadow-md transition-all flex items-center gap-2"
+            className="px-6 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-xs shadow-md transition-all flex items-center gap-2"
           >
             <Send className="w-4 h-4" />
             <span>Accept & Post Voucher (Ctrl+A)</span>

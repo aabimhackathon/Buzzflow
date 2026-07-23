@@ -3,9 +3,8 @@ import { BRANDS, BrandConfig, BrandKey, DEFAULT_BRAND_KEY } from '../config/bran
 import { DEFAULT_GROUPS, DEFAULT_LEDGERS } from '../lib/accounting/default-coa';
 import { recalculateLedgerBalances } from '../lib/accounting/double-entry';
 import { generateBalanceSheetReport, generateProfitLossReport, generateTrialBalance, generateTradingAccount } from '../lib/accounting/report-engine';
-import { INITIAL_COMPANY, INITIAL_VOUCHERS, INITIAL_INVENTORY, INITIAL_INVOICES } from '../lib/accounting/sample-data';
-import { AccountGroup, BalanceSheetReport, Company, Ledger, ProfitLossReport, TradingAccountReport, TrialBalanceRow, Voucher, InventoryItem, Invoice, FiscalArchive } from '../lib/accounting/types';
-import { supabase } from '../lib/supabase';
+import { INITIAL_COMPANIES, INITIAL_COMPANY, INITIAL_VOUCHERS, INITIAL_INVENTORY, INITIAL_INVOICES, INITIAL_CUSTOMERS, INITIAL_SUPPLIERS, INITIAL_BILLS_OUTSTANDING } from '../lib/accounting/sample-data';
+import { AccountGroup, BalanceSheetReport, Company, Ledger, ProfitLossReport, TradingAccountReport, TrialBalanceRow, Voucher, InventoryItem, Invoice, FiscalArchive, Customer, Supplier, BillOutstanding, AuditLogEntry } from '../lib/accounting/types';
 
 export interface LicenseInfo {
   mode: 'educational' | 'gold' | 'silver';
@@ -14,30 +13,55 @@ export interface LicenseInfo {
   activatedAt?: string;
 }
 
-export type AccountingSubTab = 'daybook' | 'new-voucher' | 'billing' | 'inventory' | 'coa' | 'reports' | 'tax-brs';
+export type AccountingSubTab = 'daybook' | 'new-voucher' | 'billing' | 'inventory' | 'coa' | 'reports' | 'tax-brs' | 'banking-cash' | 'debtors-creditors';
 
 interface AccountingContextType {
   brandKey: BrandKey;
   setBrandKey: (key: BrandKey) => void;
   brand: BrandConfig;
+  
+  // Multi-Company & Auth Gate
+  companies: Company[];
+  activeCompany: Company;
   company: Company;
+  activeCompanyId: string | null;
+  isCompanyAuthenticated: boolean;
+  selectCompany: (companyId: string) => void;
+  authenticateCompanyPin: (pin: string) => { success: boolean; message: string };
+  exitCompanySession: () => void;
+  addCompany: (compData: Omit<Company, 'id' | 'securityPin' | 'lastPinChangedAt' | 'pinChangedQuarters'> & { securityPin: string }) => Company;
   updateCompany: (c: Partial<Company>) => void;
+  
+  // Master Data & Ledgers
   groups: AccountGroup[];
   ledgers: Ledger[];
   vouchers: Voucher[];
   inventory: InventoryItem[];
   invoices: Invoice[];
+  customers: Customer[];
+  suppliers: Supplier[];
+  billsOutstanding: BillOutstanding[];
   archives: FiscalArchive[];
+  auditLogs: AuditLogEntry[];
+
+  // Data Actions
+  addAuditLog: (entry: Omit<AuditLogEntry, 'id' | 'timestamp' | 'companyId'>) => void;
   addVoucher: (v: Omit<Voucher, 'id' | 'createdAt'>) => { success: boolean; message: string; voucher?: Voucher };
   addLedger: (l: Omit<Ledger, 'id' | 'currentBalance'>) => { success: boolean; ledger?: Ledger };
+  addCustomer: (cust: Omit<Customer, 'id'>) => { success: boolean; customer: Customer };
+  addSupplier: (supp: Omit<Supplier, 'id'>) => { success: boolean; supplier: Supplier };
   addInventoryItem: (item: Omit<InventoryItem, 'id'>) => { success: boolean; item?: InventoryItem };
   updateInventoryStock: (skuId: string, qtyDelta: number) => void;
   addInvoice: (inv: Omit<Invoice, 'id'>) => { success: boolean; invoice?: Invoice };
   closeFinancialYear: () => void;
+
+  // Reports & Analytics
   trialBalance: TrialBalanceRow[];
   tradingAccount: TradingAccountReport;
   profitLoss: ProfitLossReport;
   balanceSheet: BalanceSheetReport;
+  
+  // UI States & Tabs
   pendingVoucherDraft: Partial<Voucher> | null;
   setPendingVoucherDraft: (draft: Partial<Voucher> | null) => void;
   activeTab: string;
@@ -46,8 +70,6 @@ interface AccountingContextType {
   setAccountingSubTab: (subTab: AccountingSubTab) => void;
   license: LicenseInfo;
   setLicense: (lic: LicenseInfo) => void;
-  isSupabaseConnected: boolean;
-  resetCompanyAndData: (newCompanyData: Partial<Company>) => void;
 }
 
 const AccountingContext = createContext<AccountingContextType | undefined>(undefined);
@@ -58,10 +80,21 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     return (saved as BrandKey) || DEFAULT_BRAND_KEY;
   });
 
-  const [company, setCompany] = useState<Company>(() => {
-    const saved = localStorage.getItem('buzzflow_company');
-    return saved ? JSON.parse(saved) : INITIAL_COMPANY;
+  // Companies List State
+  const [companies, setCompanies] = useState<Company[]>(() => {
+    const saved = localStorage.getItem('buzzflow_companies');
+    return saved ? JSON.parse(saved) : INITIAL_COMPANIES;
   });
+
+  const [activeCompanyId, setActiveCompanyId] = useState<string | null>(() => {
+    return localStorage.getItem('buzzflow_active_company_id') || null;
+  });
+
+  const [isCompanyAuthenticated, setIsCompanyAuthenticated] = useState<boolean>(() => {
+    return localStorage.getItem('buzzflow_company_auth') === 'true';
+  });
+
+  const activeCompany = companies.find(c => c.id === activeCompanyId) || companies[0] || INITIAL_COMPANY;
 
   const [license, setLicenseState] = useState<LicenseInfo>(() => {
     const saved = localStorage.getItem('buzzflow_license');
@@ -91,19 +124,70 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     return saved ? JSON.parse(saved) : INITIAL_INVOICES;
   });
 
+  const [customers, setCustomers] = useState<Customer[]>(() => {
+    const saved = localStorage.getItem('buzzflow_customers');
+    return saved ? JSON.parse(saved) : INITIAL_CUSTOMERS;
+  });
+
+  const [suppliers, setSuppliers] = useState<Supplier[]>(() => {
+    const saved = localStorage.getItem('buzzflow_suppliers');
+    return saved ? JSON.parse(saved) : INITIAL_SUPPLIERS;
+  });
+
+  const [billsOutstanding, setBillsOutstanding] = useState<BillOutstanding[]>(() => {
+    const saved = localStorage.getItem('buzzflow_bills_outstanding');
+    return saved ? JSON.parse(saved) : INITIAL_BILLS_OUTSTANDING;
+  });
+
   const [archives, setArchives] = useState<FiscalArchive[]>(() => {
     const saved = localStorage.getItem('buzzflow_archives');
     return saved ? JSON.parse(saved) : [];
   });
 
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>(() => {
+    const saved = localStorage.getItem('buzzflow_audit_logs');
+    if (saved) return JSON.parse(saved);
+    return [
+      {
+        id: 'audit-101',
+        companyId: 'comp-101',
+        timestamp: new Date(Date.now() - 3600000 * 48).toISOString(),
+        action: 'System Initialized',
+        module: 'Company',
+        details: 'Initial double-entry Chart of Accounts, local currency (INR ₹), and GST framework booted.',
+        userRole: 'Administrator / Chief Accountant',
+        ipAddress: '192.168.1.10'
+      },
+      {
+        id: 'audit-102',
+        companyId: 'comp-101',
+        timestamp: new Date(Date.now() - 3600000 * 24).toISOString(),
+        action: 'Voucher Posted',
+        module: 'Accounting',
+        details: 'Posted Sales Voucher #SAL-2026-001 for ₹2,36,000 to Reliance Industries Ltd with 18% GST.',
+        userRole: 'Staff Accountant',
+        ipAddress: '192.168.1.14'
+      },
+      {
+        id: 'audit-103',
+        companyId: 'comp-101',
+        timestamp: new Date(Date.now() - 3600000 * 6).toISOString(),
+        action: 'Ledger Created',
+        module: 'Accounting',
+        details: 'Created Sundry Debtor Ledger - Infosys Technologies (CUST-4821).',
+        userRole: 'Chief Accountant',
+        ipAddress: '192.168.1.10'
+      }
+    ];
+  });
+
   const [pendingVoucherDraft, setPendingVoucherDraft] = useState<Partial<Voucher> | null>(null);
   const [activeTab, setActiveTabState] = useState<string>('dashboard');
   const [accountingSubTab, setAccountingSubTab] = useState<AccountingSubTab>('daybook');
-  const [isSupabaseConnected] = useState<boolean>(true);
 
-  // Smart setActiveTab that redirects subtabs safely
+  // Navigation controller mapping
   const setActiveTab = (tab: string) => {
-    const subTabs: AccountingSubTab[] = ['daybook', 'new-voucher', 'billing', 'inventory', 'coa', 'reports', 'tax-brs'];
+    const subTabs: AccountingSubTab[] = ['daybook', 'new-voucher', 'billing', 'inventory', 'coa', 'reports', 'tax-brs', 'banking-cash', 'debtors-creditors'];
     if (subTabs.includes(tab as AccountingSubTab)) {
       setActiveTabState('accounting');
       setAccountingSubTab(tab as AccountingSubTab);
@@ -117,37 +201,26 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     localStorage.setItem('buzzflow_license', JSON.stringify(lic));
   };
 
-  // Sync state to localStorage & Supabase
+  // Sync state to LocalStorage
   useEffect(() => {
     localStorage.setItem('buzzflow_brand_key', brandKey);
   }, [brandKey]);
 
   useEffect(() => {
-    localStorage.setItem('buzzflow_company', JSON.stringify(company));
-    // Async push to Supabase
-    supabase.from('companies').upsert({
-      id: company.id,
-      name: company.name,
-      legal_name: company.legalName,
-      fy_start: company.fyStart,
-      fy_end: company.fyEnd,
-      gstin: company.gstin,
-      currency: company.currency,
-      currency_symbol: company.currencySymbol,
-      address: company.address,
-      city: company.city,
-      state: company.state,
-      pin_code: company.pinCode,
-      phone: company.phone,
-      email: company.email,
-      industry: company.industry,
-      pin_code_security: company.securityPin,
-      last_pin_changed_at: company.lastPinChangedAt,
-      pin_changed_quarters: company.pinChangedQuarters
-    }).then(({ error }) => {
-      if (error) console.log('Supabase Sync Note:', error.message);
-    });
-  }, [company]);
+    localStorage.setItem('buzzflow_companies', JSON.stringify(companies));
+  }, [companies]);
+
+  useEffect(() => {
+    if (activeCompanyId) {
+      localStorage.setItem('buzzflow_active_company_id', activeCompanyId);
+    } else {
+      localStorage.removeItem('buzzflow_active_company_id');
+    }
+  }, [activeCompanyId]);
+
+  useEffect(() => {
+    localStorage.setItem('buzzflow_company_auth', isCompanyAuthenticated ? 'true' : 'false');
+  }, [isCompanyAuthenticated]);
 
   useEffect(() => {
     localStorage.setItem('buzzflow_vouchers', JSON.stringify(vouchers));
@@ -165,28 +238,79 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, [invoices]);
 
   useEffect(() => {
+    localStorage.setItem('buzzflow_customers', JSON.stringify(customers));
+  }, [customers]);
+
+  useEffect(() => {
+    localStorage.setItem('buzzflow_suppliers', JSON.stringify(suppliers));
+  }, [suppliers]);
+
+  useEffect(() => {
+    localStorage.setItem('buzzflow_bills_outstanding', JSON.stringify(billsOutstanding));
+  }, [billsOutstanding]);
+
+  useEffect(() => {
     localStorage.setItem('buzzflow_archives', JSON.stringify(archives));
   }, [archives]);
 
-  const brand = BRANDS[brandKey] || BRANDS.buzzflow;
+  useEffect(() => {
+    localStorage.setItem('buzzflow_audit_logs', JSON.stringify(auditLogs));
+  }, [auditLogs]);
 
-  const updateCompany = (updated: Partial<Company>) => {
-    setCompany(prev => ({ ...prev, ...updated }));
+  const addAuditLog = (entry: Omit<AuditLogEntry, 'id' | 'timestamp' | 'companyId'>) => {
+    const newLog: AuditLogEntry = {
+      ...entry,
+      id: `audit-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      companyId: activeCompany?.id || 'comp-101',
+      timestamp: new Date().toISOString()
+    };
+    setAuditLogs(prev => [newLog, ...prev]);
   };
 
-  const resetCompanyAndData = (newCompanyData: Partial<Company>) => {
-    const updatedCompany: Company = {
-      ...company,
-      ...newCompanyData,
-      id: `comp-${Date.now()}`
+  const brand = BRANDS[brandKey] || BRANDS.buzzflow;
+
+  // Multi-Company Selection & Security 5-Digit PIN Verification
+  const selectCompany = (companyId: string) => {
+    setActiveCompanyId(companyId);
+    setIsCompanyAuthenticated(false);
+  };
+
+  const authenticateCompanyPin = (pin: string) => {
+    const targetComp = companies.find(c => c.id === activeCompanyId) || activeCompany;
+    if (targetComp && targetComp.securityPin === pin) {
+      setIsCompanyAuthenticated(true);
+      return { success: true, message: 'Authentication Successful' };
+    }
+    return { success: false, message: 'Invalid 5-digit PIN. Please try again.' };
+  };
+
+  const exitCompanySession = () => {
+    setIsCompanyAuthenticated(false);
+  };
+
+  const addCompany = (compData: Omit<Company, 'id' | 'securityPin' | 'lastPinChangedAt' | 'pinChangedQuarters'> & { securityPin: string }) => {
+    const newComp: Company = {
+      ...compData,
+      id: `comp-${Date.now()}`,
+      securityPin: compData.securityPin || '12345',
+      lastPinChangedAt: new Date().toISOString(),
+      pinChangedQuarters: { q1: true, q2: true, q3: true, q4: true }
     };
-    setCompany(updatedCompany);
-    setVouchers([]);
-    setInventory([]);
-    setInvoices([]);
-    setArchives([]);
-    const freshLedgers = recalculateLedgerBalances(DEFAULT_LEDGERS, []);
-    setLedgers(freshLedgers);
+
+    setCompanies(prev => [...prev, newComp]);
+    setActiveCompanyId(newComp.id);
+    setIsCompanyAuthenticated(true);
+    return newComp;
+  };
+
+  const updateCompany = (updated: Partial<Company>) => {
+    setCompanies(prev => prev.map(c => c.id === activeCompany.id ? { ...c, ...updated } : c));
+    addAuditLog({
+      action: 'Company Profile & Tax/Currency Updated',
+      module: 'Company',
+      details: `Updated profile & tax settings for ${activeCompany.name} (Currency: ${updated.currencySymbol || activeCompany.currencySymbol}, Tax Format: ${updated.regionalTaxFormat || activeCompany.regionalTaxFormat || 'GST'})`,
+      userRole: 'Administrator / Chief Accountant'
+    });
   };
 
   const addVoucher = (newVchData: Omit<Voucher, 'id' | 'createdAt'>) => {
@@ -195,23 +319,13 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       id: `vch-${Date.now()}`,
       createdAt: new Date().toISOString()
     };
-
     setVouchers(prev => [newVoucher, ...prev]);
-
-    supabase.from('vouchers').insert({
-      id: newVoucher.id,
-      company_id: newVoucher.companyId,
-      voucher_no: newVoucher.voucherNo,
-      voucher_type: newVoucher.voucherType,
-      date: newVoucher.date,
-      total_amount: newVoucher.totalAmount,
-      narration: newVoucher.narration,
-      status: newVoucher.status,
-      items: newVoucher.items
-    }).then(({ error }) => {
-      if (error) console.log('Supabase Voucher Sync Note:', error.message);
+    addAuditLog({
+      action: 'Voucher Posted',
+      module: 'Accounting',
+      details: `Posted ${newVoucher.voucherType.toUpperCase()} Voucher #${newVoucher.voucherNo} for ${activeCompany.currencySymbol}${newVoucher.totalAmount?.toLocaleString() || 0} (${newVoucher.narration || 'General Entry'})`,
+      userRole: 'Staff Accountant'
     });
-
     return { success: true, message: 'Voucher posted successfully!', voucher: newVoucher };
   };
 
@@ -221,25 +335,82 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       id: `led-${Date.now()}`,
       currentBalance: newLedgerData.openingBalance || 0
     };
+    setLedgers(prev => [...prev, newLedger]);
+    addAuditLog({
+      action: 'Ledger Created',
+      module: 'Accounting',
+      details: `Created new ledger account ${newLedger.name} (${newLedger.groupName})`,
+      userRole: 'Chief Accountant'
+    });
+    return { success: true, ledger: newLedger };
+  };
+
+  // Add New Customer Flow with automatic Tally Chart of Accounts Sync
+  const addCustomer = (custData: Omit<Customer, 'id'>) => {
+    const customerId = `cust-${Date.now()}`;
+    const ledgerCode = `CUST-${Math.floor(1000 + Math.random() * 9000)}`;
+    
+    // Automatically create Sundry Debtors Ledger in Tally Chart of Accounts
+    const newLedger: Ledger = {
+      id: `led-${customerId}`,
+      code: ledgerCode,
+      name: `${custData.name} (Sundry Debtor)`,
+      groupId: 'grp-sundry-debtors',
+      groupName: 'Sundry Debtors',
+      category: 'Assets',
+      nature: 'debit',
+      openingBalance: 0,
+      currentBalance: 0,
+      gstin: custData.gstin,
+      email: custData.email,
+      phone: custData.phone
+    };
 
     setLedgers(prev => [...prev, newLedger]);
 
-    supabase.from('ledgers').insert({
-      id: newLedger.id,
-      company_id: company.id,
-      code: newLedger.code,
-      name: newLedger.name,
-      group_id: newLedger.groupId,
-      group_name: newLedger.groupName,
-      category: newLedger.category,
-      nature: newLedger.nature,
-      opening_balance: newLedger.openingBalance,
-      current_balance: newLedger.currentBalance
-    }).then(({ error }) => {
-      if (error) console.log('Supabase Ledger Sync Note:', error.message);
-    });
+    const newCustomer: Customer = {
+      ...custData,
+      id: customerId,
+      ledgerId: newLedger.id,
+      createdAt: new Date().toISOString()
+    };
 
-    return { success: true, ledger: newLedger };
+    setCustomers(prev => [...prev, newCustomer]);
+    return { success: true, customer: newCustomer };
+  };
+
+  // Add New Supplier Flow with automatic Tally Chart of Accounts Sync
+  const addSupplier = (suppData: Omit<Supplier, 'id'>) => {
+    const supplierId = `supp-${Date.now()}`;
+    const ledgerCode = `SUPP-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    // Automatically create Sundry Creditors Ledger in Tally Chart of Accounts
+    const newLedger: Ledger = {
+      id: `led-${supplierId}`,
+      code: ledgerCode,
+      name: `${suppData.name} (Sundry Creditor)`,
+      groupId: 'grp-sundry-creditors',
+      groupName: 'Sundry Creditors',
+      category: 'Liabilities',
+      nature: 'credit',
+      openingBalance: 0,
+      currentBalance: 0,
+      gstin: suppData.gstin,
+      email: suppData.email,
+      phone: suppData.phone
+    };
+
+    setLedgers(prev => [...prev, newLedger]);
+
+    const newSupplier: Supplier = {
+      ...suppData,
+      id: supplierId,
+      ledgerId: newLedger.id,
+      createdAt: new Date().toISOString()
+    };
+
+    setSuppliers(prev => [...prev, newSupplier]);
+    return { success: true, supplier: newSupplier };
   };
 
   const addInventoryItem = (itemData: Omit<InventoryItem, 'id'>) => {
@@ -248,26 +419,7 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       id: `inv-sku-${Date.now()}`,
       createdAt: new Date().toISOString()
     };
-
     setInventory(prev => [...prev, newItem]);
-
-    supabase.from('inventory_items').insert({
-      id: newItem.id,
-      company_id: company.id,
-      item_code: newItem.itemCode,
-      name: newItem.name,
-      category: newItem.category,
-      unit: newItem.unit,
-      hsn_code: newItem.hsnCode,
-      gst_rate: newItem.gstRate,
-      cost_price: newItem.costPrice,
-      selling_price: newItem.sellingPrice,
-      current_stock: newItem.currentStock,
-      reorder_level: newItem.reorderLevel
-    }).then(({ error }) => {
-      if (error) console.log('Supabase Inventory Sync Note:', error.message);
-    });
-
     return { success: true, item: newItem };
   };
 
@@ -295,34 +447,16 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
     });
 
-    supabase.from('invoices').insert({
-      id: newInvoice.id,
-      company_id: company.id,
-      invoice_no: newInvoice.invoiceNo,
-      customer_name: newInvoice.customerName,
-      customer_gstin: newInvoice.customerGstin,
-      customer_address: newInvoice.customerAddress,
-      invoice_date: newInvoice.invoiceDate,
-      items: newInvoice.items,
-      subtotal: newInvoice.subtotal,
-      tax_amount: newInvoice.taxAmount,
-      total_amount: newInvoice.totalAmount,
-      status: newInvoice.status,
-      terms: newInvoice.terms
-    }).then(({ error }) => {
-      if (error) console.log('Supabase Invoice Sync Note:', error.message);
-    });
-
     return { success: true, invoice: newInvoice };
   };
 
   const closeFinancialYear = () => {
-    const currentFyLabel = `${company.fyStart.slice(0, 4)}-${company.fyEnd.slice(0, 4)}`;
+    const currentFyLabel = `${activeCompany.fyStart.slice(0, 4)}-${activeCompany.fyEnd.slice(0, 4)}`;
     const pnl = generateProfitLossReport(ledgers);
 
     const archive: FiscalArchive = {
       id: `fy-archive-${Date.now()}`,
-      companyId: company.id,
+      companyId: activeCompany.id,
       financialYear: currentFyLabel,
       archivedAt: new Date().toISOString(),
       openingBalances: ledgers.reduce((acc, l) => ({ ...acc, [l.id]: l.openingBalance }), {}),
@@ -350,27 +484,14 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setLedgers(resetLedgers);
     setVouchers([]);
 
-    const currentStartYear = parseInt(company.fyStart.slice(0, 4), 10);
+    const currentStartYear = parseInt(activeCompany.fyStart.slice(0, 4), 10);
     const nextStart = `${currentStartYear + 1}-04-01`;
     const nextEnd = `${currentStartYear + 2}-03-31`;
 
     updateCompany({ fyStart: nextStart, fyEnd: nextEnd });
-
-    supabase.from('fiscal_archives').insert({
-      id: archive.id,
-      company_id: archive.companyId,
-      financial_year: archive.financialYear,
-      archived_at: archive.archivedAt,
-      opening_balances: archive.openingBalances,
-      closing_balances: archive.closingBalances,
-      vouchers_snapshot: archive.vouchersSnapshot,
-      profit_loss_summary: archive.profitAndLossSummary
-    }).then(({ error }) => {
-      if (error) console.log('Supabase Archive Sync Note:', error.message);
-    });
   };
 
-  // Reports
+  // Financial Reports
   const trialBalance = generateTrialBalance(ledgers);
   const tradingAccount = generateTradingAccount(ledgers);
   const profitLoss = generateProfitLossReport(ledgers);
@@ -382,16 +503,31 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         brandKey,
         setBrandKey,
         brand,
-        company,
+        companies,
+        activeCompany,
+        company: activeCompany,
+        activeCompanyId,
+        isCompanyAuthenticated,
+        selectCompany,
+        authenticateCompanyPin,
+        exitCompanySession,
+        addCompany,
         updateCompany,
         groups,
         ledgers,
         vouchers,
         inventory,
         invoices,
+        customers,
+        suppliers,
+        billsOutstanding,
         archives,
+        auditLogs,
+        addAuditLog,
         addVoucher,
         addLedger,
+        addCustomer,
+        addSupplier,
         addInventoryItem,
         updateInventoryStock,
         addInvoice,
@@ -407,9 +543,7 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         accountingSubTab,
         setAccountingSubTab,
         license,
-        setLicense,
-        isSupabaseConnected,
-        resetCompanyAndData
+        setLicense
       }}
     >
       {children}
