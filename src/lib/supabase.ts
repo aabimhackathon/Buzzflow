@@ -2,17 +2,20 @@ import { createClient } from '@supabase/supabase-js';
 
 // Secure Supabase Configuration from Environment Variables
 const metaEnv = (import.meta as unknown as { env: Record<string, string> }).env || {};
-export const SUPABASE_URL = metaEnv.VITE_SUPABASE_URL || 'https://iaypgepkmphoozrtmqbt.supabase.co';
-export const SUPABASE_ANON_KEY = metaEnv.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlheXBnZXBrbXBob296cnRtcWJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1NDQxMzksImV4cCI6MjEwMDEyMDEzOX0.tGUBgdo5IPWOgt17wiJOdCKXT09HLgh4OeGyKPAVhmw';
+export const SUPABASE_URL = metaEnv.VITE_SUPABASE_URL || '';
+export const SUPABASE_ANON_KEY = metaEnv.VITE_SUPABASE_ANON_KEY || '';
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+export const supabase = createClient(
+  SUPABASE_URL || 'https://placeholder.supabase.co', 
+  SUPABASE_ANON_KEY || 'placeholder'
+);
 
 /**
  * SQL DDL Schema string for initializing Supabase tables.
  * Users can view/copy this or use it to execute via Supabase SQL Editor.
  */
 export const SUPABASE_SCHEMA_SQL = `-- Complete ICAI Accounting, Inventory, Security PIN & Fiscal Archive Schema
--- Execute this SQL in Supabase SQL Editor (https://supabase.com/dashboard/project/iaypgepkmphoozrtmqbt/sql)
+-- Execute this SQL in your Supabase SQL Editor
 
 -- 1. Companies Table with 5-Digit Security PIN & Financial Year Rules
 CREATE TABLE IF NOT EXISTS public.companies (
