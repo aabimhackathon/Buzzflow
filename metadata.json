@@ -1,0 +1,6 @@
+{
+  "name": "Buzzflow AI",
+  "description": "Double-entry accounting software with centralized branding, voucher management, COA, reports, and AI accounting assistant.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
