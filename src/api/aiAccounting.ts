@@ -33,7 +33,7 @@ export async function processAiAccountingQuery(reqData: AiAccountingRequest): Pr
     }
   });
 
-  const brandName = reqData.brandName || 'Buzzflow';
+  const brandName = reqData.brandName || 'Vepari AI';
   const currencySymbol = reqData.currencySymbol || '₹';
 
   const systemInstruction = `

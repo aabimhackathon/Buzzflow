@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAccounting } from '../context/AccountingContext';
-import { ShieldCheck, Database } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
 
 export const Footer: React.FC = () => {
   const { brand, activeCompany } = useAccounting();
@@ -21,9 +21,6 @@ export const Footer: React.FC = () => {
 
           <div className="flex items-center gap-4 text-slate-300">
             <span>{brand.footerText}</span>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#1E293B] text-teal-300 font-mono text-[10px]">
-              <Database className="w-3 h-3 text-[#16B8A6]" /> Local Ledger DB
-            </span>
           </div>
         </div>
       </div>

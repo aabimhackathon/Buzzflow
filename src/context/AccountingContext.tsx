@@ -70,82 +70,87 @@ interface AccountingContextType {
   setAccountingSubTab: (subTab: AccountingSubTab) => void;
   license: LicenseInfo;
   setLicense: (lic: LicenseInfo) => void;
+
+  // AI OS System Initialization & Boot Sequence State
+  systemOsState: 'offline' | 'initializing' | 'ready';
+  setSystemOsState: (state: 'offline' | 'initializing' | 'ready') => void;
+  rebootOs: () => void;
 }
 
 const AccountingContext = createContext<AccountingContextType | undefined>(undefined);
 
 export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [brandKey, setBrandKey] = useState<BrandKey>(() => {
-    const saved = localStorage.getItem('buzzflow_brand_key');
+    const saved = localStorage.getItem('vepari_brand_key') || localStorage.getItem('buzzflow_brand_key');
     return (saved as BrandKey) || DEFAULT_BRAND_KEY;
   });
 
   // Companies List State
   const [companies, setCompanies] = useState<Company[]>(() => {
-    const saved = localStorage.getItem('buzzflow_companies');
+    const saved = localStorage.getItem('vepari_companies') || localStorage.getItem('buzzflow_companies');
     return saved ? JSON.parse(saved) : INITIAL_COMPANIES;
   });
 
   const [activeCompanyId, setActiveCompanyId] = useState<string | null>(() => {
-    return localStorage.getItem('buzzflow_active_company_id') || null;
+    return localStorage.getItem('vepari_active_company_id') || localStorage.getItem('buzzflow_active_company_id') || null;
   });
 
   const [isCompanyAuthenticated, setIsCompanyAuthenticated] = useState<boolean>(() => {
-    return localStorage.getItem('buzzflow_company_auth') === 'true';
+    return (localStorage.getItem('vepari_company_auth') || localStorage.getItem('buzzflow_company_auth')) === 'true';
   });
 
   const activeCompany = companies.find(c => c.id === activeCompanyId) || companies[0] || INITIAL_COMPANY;
 
   const [license, setLicenseState] = useState<LicenseInfo>(() => {
-    const saved = localStorage.getItem('buzzflow_license');
+    const saved = localStorage.getItem('vepari_license') || localStorage.getItem('buzzflow_license');
     return saved ? JSON.parse(saved) : { mode: 'educational', isLicensed: true };
   });
 
   const [groups] = useState<AccountGroup[]>(DEFAULT_GROUPS);
 
   const [vouchers, setVouchers] = useState<Voucher[]>(() => {
-    const saved = localStorage.getItem('buzzflow_vouchers');
+    const saved = localStorage.getItem('vepari_vouchers') || localStorage.getItem('buzzflow_vouchers');
     return saved ? JSON.parse(saved) : INITIAL_VOUCHERS;
   });
 
   const [ledgers, setLedgers] = useState<Ledger[]>(() => {
-    const saved = localStorage.getItem('buzzflow_ledgers');
+    const saved = localStorage.getItem('vepari_ledgers') || localStorage.getItem('buzzflow_ledgers');
     if (saved) return JSON.parse(saved);
     return recalculateLedgerBalances(DEFAULT_LEDGERS, INITIAL_VOUCHERS);
   });
 
   const [inventory, setInventory] = useState<InventoryItem[]>(() => {
-    const saved = localStorage.getItem('buzzflow_inventory');
+    const saved = localStorage.getItem('vepari_inventory') || localStorage.getItem('buzzflow_inventory');
     return saved ? JSON.parse(saved) : INITIAL_INVENTORY;
   });
 
   const [invoices, setInvoices] = useState<Invoice[]>(() => {
-    const saved = localStorage.getItem('buzzflow_invoices');
+    const saved = localStorage.getItem('vepari_invoices') || localStorage.getItem('buzzflow_invoices');
     return saved ? JSON.parse(saved) : INITIAL_INVOICES;
   });
 
   const [customers, setCustomers] = useState<Customer[]>(() => {
-    const saved = localStorage.getItem('buzzflow_customers');
+    const saved = localStorage.getItem('vepari_customers') || localStorage.getItem('buzzflow_customers');
     return saved ? JSON.parse(saved) : INITIAL_CUSTOMERS;
   });
 
   const [suppliers, setSuppliers] = useState<Supplier[]>(() => {
-    const saved = localStorage.getItem('buzzflow_suppliers');
+    const saved = localStorage.getItem('vepari_suppliers') || localStorage.getItem('buzzflow_suppliers');
     return saved ? JSON.parse(saved) : INITIAL_SUPPLIERS;
   });
 
   const [billsOutstanding, setBillsOutstanding] = useState<BillOutstanding[]>(() => {
-    const saved = localStorage.getItem('buzzflow_bills_outstanding');
+    const saved = localStorage.getItem('vepari_bills_outstanding') || localStorage.getItem('buzzflow_bills_outstanding');
     return saved ? JSON.parse(saved) : INITIAL_BILLS_OUTSTANDING;
   });
 
   const [archives, setArchives] = useState<FiscalArchive[]>(() => {
-    const saved = localStorage.getItem('buzzflow_archives');
+    const saved = localStorage.getItem('vepari_archives') || localStorage.getItem('buzzflow_archives');
     return saved ? JSON.parse(saved) : [];
   });
 
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>(() => {
-    const saved = localStorage.getItem('buzzflow_audit_logs');
+    const saved = localStorage.getItem('vepari_audit_logs') || localStorage.getItem('buzzflow_audit_logs');
     if (saved) return JSON.parse(saved);
     return [
       {
@@ -182,8 +187,36 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   });
 
   const [pendingVoucherDraft, setPendingVoucherDraft] = useState<Partial<Voucher> | null>(null);
-  const [activeTab, setActiveTabState] = useState<string>('dashboard');
+  const [activeTab, setActiveTabState] = useState<string>('vepari-ai');
   const [accountingSubTab, setAccountingSubTab] = useState<AccountingSubTab>('daybook');
+
+  // AI OS System Initialization & Boot state
+  const [systemOsState, setSystemOsState] = useState<'offline' | 'initializing' | 'ready'>(
+    isCompanyAuthenticated ? 'ready' : 'offline'
+  );
+
+  // Auto-initialize AI OS when isCompanyAuthenticated becomes true
+  useEffect(() => {
+    if (isCompanyAuthenticated) {
+      setSystemOsState('initializing');
+      setActiveTabState('vepari-ai');
+      const timer = setTimeout(() => {
+        setSystemOsState('ready');
+      }, 2000);
+      return () => clearTimeout(timer);
+    } else {
+      setSystemOsState('offline');
+    }
+  }, [isCompanyAuthenticated]);
+
+  const rebootOs = () => {
+    if (!isCompanyAuthenticated) return;
+    setSystemOsState('initializing');
+    setActiveTabState('vepari-ai');
+    setTimeout(() => {
+      setSystemOsState('ready');
+    }, 2000);
+  };
 
   // Navigation controller mapping
   const setActiveTab = (tab: string) => {
@@ -198,63 +231,63 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const setLicense = (lic: LicenseInfo) => {
     setLicenseState(lic);
-    localStorage.setItem('buzzflow_license', JSON.stringify(lic));
+    localStorage.setItem('vepari_license', JSON.stringify(lic));
   };
 
   // Sync state to LocalStorage
   useEffect(() => {
-    localStorage.setItem('buzzflow_brand_key', brandKey);
+    localStorage.setItem('vepari_brand_key', brandKey);
   }, [brandKey]);
 
   useEffect(() => {
-    localStorage.setItem('buzzflow_companies', JSON.stringify(companies));
+    localStorage.setItem('vepari_companies', JSON.stringify(companies));
   }, [companies]);
 
   useEffect(() => {
     if (activeCompanyId) {
-      localStorage.setItem('buzzflow_active_company_id', activeCompanyId);
+      localStorage.setItem('vepari_active_company_id', activeCompanyId);
     } else {
-      localStorage.removeItem('buzzflow_active_company_id');
+      localStorage.removeItem('vepari_active_company_id');
     }
   }, [activeCompanyId]);
 
   useEffect(() => {
-    localStorage.setItem('buzzflow_company_auth', isCompanyAuthenticated ? 'true' : 'false');
+    localStorage.setItem('vepari_company_auth', isCompanyAuthenticated ? 'true' : 'false');
   }, [isCompanyAuthenticated]);
 
   useEffect(() => {
-    localStorage.setItem('buzzflow_vouchers', JSON.stringify(vouchers));
+    localStorage.setItem('vepari_vouchers', JSON.stringify(vouchers));
     const updatedLedgers = recalculateLedgerBalances(ledgers, vouchers);
     setLedgers(updatedLedgers);
-    localStorage.setItem('buzzflow_ledgers', JSON.stringify(updatedLedgers));
+    localStorage.setItem('vepari_ledgers', JSON.stringify(updatedLedgers));
   }, [vouchers]);
 
   useEffect(() => {
-    localStorage.setItem('buzzflow_inventory', JSON.stringify(inventory));
+    localStorage.setItem('vepari_inventory', JSON.stringify(inventory));
   }, [inventory]);
 
   useEffect(() => {
-    localStorage.setItem('buzzflow_invoices', JSON.stringify(invoices));
+    localStorage.setItem('vepari_invoices', JSON.stringify(invoices));
   }, [invoices]);
 
   useEffect(() => {
-    localStorage.setItem('buzzflow_customers', JSON.stringify(customers));
+    localStorage.setItem('vepari_customers', JSON.stringify(customers));
   }, [customers]);
 
   useEffect(() => {
-    localStorage.setItem('buzzflow_suppliers', JSON.stringify(suppliers));
+    localStorage.setItem('vepari_suppliers', JSON.stringify(suppliers));
   }, [suppliers]);
 
   useEffect(() => {
-    localStorage.setItem('buzzflow_bills_outstanding', JSON.stringify(billsOutstanding));
+    localStorage.setItem('vepari_bills_outstanding', JSON.stringify(billsOutstanding));
   }, [billsOutstanding]);
 
   useEffect(() => {
-    localStorage.setItem('buzzflow_archives', JSON.stringify(archives));
+    localStorage.setItem('vepari_archives', JSON.stringify(archives));
   }, [archives]);
 
   useEffect(() => {
-    localStorage.setItem('buzzflow_audit_logs', JSON.stringify(auditLogs));
+    localStorage.setItem('vepari_audit_logs', JSON.stringify(auditLogs));
   }, [auditLogs]);
 
   const addAuditLog = (entry: Omit<AuditLogEntry, 'id' | 'timestamp' | 'companyId'>) => {
@@ -267,7 +300,7 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setAuditLogs(prev => [newLog, ...prev]);
   };
 
-  const brand = BRANDS[brandKey] || BRANDS.buzzflow;
+  const brand = BRANDS[brandKey] || BRANDS.vepari_ai || BRANDS.buzzflow;
 
   // Multi-Company Selection & Security 5-Digit PIN Verification
   const selectCompany = (companyId: string) => {
@@ -279,6 +312,7 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const targetComp = companies.find(c => c.id === activeCompanyId) || activeCompany;
     if (targetComp && targetComp.securityPin === pin) {
       setIsCompanyAuthenticated(true);
+      setActiveTabState('vepari-ai');
       return { success: true, message: 'Authentication Successful' };
     }
     return { success: false, message: 'Invalid 5-digit PIN. Please try again.' };
@@ -300,6 +334,7 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setCompanies(prev => [...prev, newComp]);
     setActiveCompanyId(newComp.id);
     setIsCompanyAuthenticated(true);
+    setActiveTabState('vepari-ai');
     return newComp;
   };
 
@@ -543,7 +578,10 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         accountingSubTab,
         setAccountingSubTab,
         license,
-        setLicense
+        setLicense,
+        systemOsState,
+        setSystemOsState,
+        rebootOs
       }}
     >
       {children}

@@ -54,7 +54,7 @@ export const AuditLogView: React.FC = () => {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `buzzflow_audit_log_${activeCompany.name}_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute('download', `vepari_ai_audit_log_${activeCompany.name}_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

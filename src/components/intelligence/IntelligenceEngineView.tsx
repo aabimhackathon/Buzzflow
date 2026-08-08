@@ -1,11 +1,16 @@
 import React from 'react';
 import { Bot, Sparkles } from 'lucide-react';
+import { VEPARI_ASSETS } from '../../config/assets';
 
 export const IntelligenceEngineView: React.FC<{ onOpenAi: () => void }> = ({ onOpenAi }) => {
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] text-center max-w-2xl mx-auto space-y-6">
-      <div className="w-20 h-20 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center border-4 border-amber-50 dark:border-amber-900/10 shadow-xl mb-4">
-        <Bot className="w-10 h-10 text-amber-600 dark:text-amber-400" />
+      <div className="w-24 h-24 bg-amber-100 dark:bg-amber-900/30 rounded-3xl flex items-center justify-center border-4 border-amber-50 dark:border-amber-900/10 shadow-xl mb-2 overflow-hidden p-2">
+        <img 
+          src={VEPARI_ASSETS.engines.intelligence} 
+          alt="Intelligence Engine" 
+          className="w-full h-full object-cover rounded-2xl bg-white"
+        />
       </div>
       
       <h2 className="text-3xl font-bold text-slate-900 dark:text-white">

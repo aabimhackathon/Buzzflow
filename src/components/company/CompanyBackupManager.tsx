@@ -40,7 +40,7 @@ export const CompanyBackupManager: React.FC = () => {
     try {
       const backupData = {
         metadata: {
-          system: 'Buzzflow Enterprise Accounting Engine',
+          system: 'Vepari AI Enterprise Accounting Engine',
           version: '3.5.0',
           exportedAt: new Date().toISOString(),
           companyId: activeCompany.id,
@@ -77,7 +77,7 @@ export const CompanyBackupManager: React.FC = () => {
       link.href = url;
       const cleanCompName = activeCompany.name.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
       const dateStr = new Date().toISOString().slice(0, 10);
-      link.download = `buzzflow_backup_${cleanCompName}_${dateStr}.json`;
+      link.download = `vepari_ai_backup_${cleanCompName}_${dateStr}.json`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -131,7 +131,7 @@ export const CompanyBackupManager: React.FC = () => {
         }
 
         if (!parsed.company || !parsed.vouchers || !parsed.ledgers) {
-          setImportError('Invalid Buzzflow backup format. Missing core company or voucher schema.');
+          setImportError('Invalid Vepari AI backup format. Missing core company or voucher schema.');
           return;
         }
 
@@ -167,13 +167,13 @@ export const CompanyBackupManager: React.FC = () => {
 
     try {
       // Overwrite local storage entries with backup data
-      if (backupPreview.vouchers) localStorage.setItem('buzzflow_vouchers', JSON.stringify(backupPreview.vouchers));
-      if (backupPreview.ledgers) localStorage.setItem('buzzflow_ledgers', JSON.stringify(backupPreview.ledgers));
-      if (backupPreview.inventory) localStorage.setItem('buzzflow_inventory', JSON.stringify(backupPreview.inventory));
-      if (backupPreview.invoices) localStorage.setItem('buzzflow_invoices', JSON.stringify(backupPreview.invoices));
-      if (backupPreview.customers) localStorage.setItem('buzzflow_customers', JSON.stringify(backupPreview.customers));
-      if (backupPreview.suppliers) localStorage.setItem('buzzflow_suppliers', JSON.stringify(backupPreview.suppliers));
-      if (backupPreview.billsOutstanding) localStorage.setItem('buzzflow_bills_outstanding', JSON.stringify(backupPreview.billsOutstanding));
+      if (backupPreview.vouchers) localStorage.setItem('vepari_vouchers', JSON.stringify(backupPreview.vouchers));
+      if (backupPreview.ledgers) localStorage.setItem('vepari_ledgers', JSON.stringify(backupPreview.ledgers));
+      if (backupPreview.inventory) localStorage.setItem('vepari_inventory', JSON.stringify(backupPreview.inventory));
+      if (backupPreview.invoices) localStorage.setItem('vepari_invoices', JSON.stringify(backupPreview.invoices));
+      if (backupPreview.customers) localStorage.setItem('vepari_customers', JSON.stringify(backupPreview.customers));
+      if (backupPreview.suppliers) localStorage.setItem('vepari_suppliers', JSON.stringify(backupPreview.suppliers));
+      if (backupPreview.billsOutstanding) localStorage.setItem('vepari_bills_outstanding', JSON.stringify(backupPreview.billsOutstanding));
 
       setImportSuccess(true);
 
@@ -263,7 +263,7 @@ export const CompanyBackupManager: React.FC = () => {
             </div>
             <div>
               <h3 className="text-base font-bold text-slate-900 dark:text-white">Manual Data Restoration</h3>
-              <p className="text-xs text-slate-500">Restore company ledgers and vouchers from an existing Buzzflow JSON backup file</p>
+              <p className="text-xs text-slate-500">Restore company ledgers and vouchers from an existing Vepari AI JSON backup file</p>
             </div>
           </div>
           <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-200 dark:border-amber-800 flex items-center gap-1">

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Lightbulb, FileText, Wrench, Briefcase, TrendingDown, TrendingUp, Activity } from 'lucide-react';
 import { useAccounting } from '../../context/AccountingContext';
+import { VEPARI_ASSETS } from '../../config/assets';
 
 export const FinanceEngineView: React.FC = () => {
   const { ledgers, company } = useAccounting();
@@ -56,7 +57,17 @@ export const FinanceEngineView: React.FC = () => {
       <div className="p-6 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
         {subTab === 'health' && (
           <div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Financial Health Check</h2>
+            <div className="flex items-center gap-3 mb-4">
+              <img 
+                src={VEPARI_ASSETS.engines.finance} 
+                alt="Finance Engine" 
+                className="w-10 h-10 rounded-xl object-cover border border-slate-200 dark:border-slate-700 bg-white p-0.5 shadow-sm"
+              />
+              <div>
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white">Financial Health Check</h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Powered by Vepari AI Finance Engine</p>
+              </div>
+            </div>
             <p className="text-slate-600 dark:text-slate-400 mb-6">Real-time analysis of your company's liquidity and solvency metrics.</p>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

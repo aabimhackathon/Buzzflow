@@ -1,8 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAccounting } from '../../context/AccountingContext';
 import { FinancialCharts } from './FinancialCharts';
 import { RecentActivityFeed } from './RecentActivityFeed';
 import { VOUCHER_TYPES } from '../../lib/accounting/default-coa';
+import { DashboardSkeleton } from '../common/SkeletonLoader';
+import { BriefingEngine } from '../../ai/briefing/BriefingEngine';
+import { EventIntelligenceEngine } from '../../ai/events/EventIntelligenceEngine';
+import { VEPARI_ASSETS } from '../../config/assets';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -17,11 +21,31 @@ import {
   Info,
   ExternalLink,
   PieChart,
-  FileSpreadsheet
+  FileSpreadsheet,
+  RefreshCw,
+  AlertTriangle,
+  Lightbulb,
+  CheckCircle2
 } from 'lucide-react';
 
 export const DashboardView: React.FC<{ onOpenAi: () => void }> = ({ onOpenAi }) => {
-  const { brand, company, vouchers, ledgers, profitLoss, setActiveTab, setAccountingSubTab } = useAccounting();
+  const { brand, company, vouchers, ledgers, inventory, profitLoss, setActiveTab, setAccountingSubTab } = useAccounting();
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [company.id]);
+
+  // Compute Briefing & Proactive Events from Real Data
+  const briefing = BriefingEngine.generateBriefing(company, vouchers, ledgers, inventory, profitLoss);
+  const events = EventIntelligenceEngine.detectEvents(company, vouchers, ledgers, inventory);
+
+  if (isLoading) {
+    return <DashboardSkeleton />;
+  }
 
   // Receivables (Debtors) & Payables (Creditors)
   const debtors = ledgers.filter(l => l.groupId === 'grp-debtors');
@@ -78,6 +102,65 @@ export const DashboardView: React.FC<{ onOpenAi: () => void }> = ({ onOpenAi }) 
           >
             <Bot className="w-4 h-4 text-amber-300" />
             <span>AI Assistant</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Jarvis-Style Executive Morning Briefing */}
+      <div className="bg-slate-900 text-white p-6 rounded-3xl border border-slate-800 shadow-2xl space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+          <div className="flex items-center gap-3">
+            <img 
+              src={VEPARI_ASSETS.engines.intelligence} 
+              alt="Vepari AI" 
+              className="w-10 h-10 rounded-xl object-cover bg-white p-0.5 border border-amber-400/40 shadow-lg shadow-amber-500/10"
+            />
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-bold tracking-tight text-white">{briefing.greeting}</h2>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                  AI Business Briefing
+                </span>
+              </div>
+              <p className="text-xs text-slate-400">While you were away — Vepari AI intelligence report for {company.name}</p>
+            </div>
+          </div>
+          <button
+            onClick={onOpenAi}
+            className="px-3.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs transition-all flex items-center gap-1.5 self-start sm:self-auto"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Command Vepari AI</span>
+          </button>
+        </div>
+
+        <p className="text-sm text-slate-300 leading-relaxed">{briefing.summary}</p>
+
+        {/* Briefing Highlights Bar */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {briefing.highlights.map((hl, idx) => (
+            <div key={idx} className="p-3 rounded-2xl bg-slate-800/60 border border-slate-700/60">
+              <span className="text-[10px] text-slate-400 block uppercase font-medium">{hl.label}</span>
+              <span className="text-base font-bold text-white mt-0.5 block">{hl.value}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Priority Recommended Action */}
+        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-start gap-2.5">
+            <Lightbulb className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+            <div>
+              <span className="text-xs font-bold text-amber-300 block">Priority Recommendation</span>
+              <p className="text-xs text-slate-300 mt-0.5">{briefing.recommendedAction.description}</p>
+            </div>
+          </div>
+          <button
+            onClick={() => handleJumpToReport(briefing.recommendedAction.targetTab || 'accounting', briefing.recommendedAction.targetSubTab)}
+            className="px-3 py-1.5 rounded-xl bg-white text-slate-900 hover:bg-slate-100 font-bold text-xs shrink-0 flex items-center gap-1"
+          >
+            <span>{briefing.recommendedAction.title}</span>
+            <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>

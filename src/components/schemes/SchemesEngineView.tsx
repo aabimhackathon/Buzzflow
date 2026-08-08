@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Sparkles, Search, Building, ArrowRight, Loader2, CheckCircle2 } from 'lucide-react';
 import { useAccounting } from '../../context/AccountingContext';
 import ReactMarkdown from 'react-markdown';
+import { VEPARI_ASSETS } from '../../config/assets';
 
 export const SchemesEngineView: React.FC = () => {
   const { company } = useAccounting();
@@ -32,8 +33,12 @@ export const SchemesEngineView: React.FC = () => {
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       <div className="text-center space-y-4 mb-8">
-        <div className="w-16 h-16 mx-auto bg-teal-100 dark:bg-teal-900/30 rounded-full flex items-center justify-center mb-4">
-          <Building className="w-8 h-8 text-teal-600 dark:text-teal-400" />
+        <div className="w-20 h-20 mx-auto bg-teal-100 dark:bg-teal-900/30 rounded-2xl flex items-center justify-center p-1 border border-teal-200 dark:border-teal-800 shadow-md">
+          <img 
+            src={VEPARI_ASSETS.engines.growth} 
+            alt="Growth Engine" 
+            className="w-full h-full object-cover rounded-xl bg-white"
+          />
         </div>
         <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Gov Schemes & Growth Engine</h2>
         <p className="text-slate-600 dark:text-slate-400">Discover official government schemes, grants, and subsidies for MSMEs using AI-powered search across trusted government domains.</p>

@@ -32,13 +32,13 @@ interface TourStep {
 const TOUR_STEPS: TourStep[] = [
   {
     id: 'welcome',
-    title: 'Welcome to Buzzflow Enterprise',
+    title: 'Welcome to Vepari AI Enterprise',
     subtitle: 'Intelligent Real-Time Double-Entry Accounting Engine',
     moduleBadge: 'System Overview',
     badgeBg: 'bg-blue-100 dark:bg-blue-950/80',
     badgeText: 'text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800',
     icon: Zap,
-    description: 'Buzzflow is engineered with an ICAI-compliant double-entry ledger core. Designed for modern accounting teams, CFOs, and tax practitioners.',
+    description: 'Vepari AI is engineered with an ICAI-compliant double-entry ledger core. Designed for modern accounting teams, CFOs, and tax practitioners.',
     highlights: [
       'Multi-company portal with 5-digit PIN access',
       'Real-time trial balance balancing & automatic journal posting',

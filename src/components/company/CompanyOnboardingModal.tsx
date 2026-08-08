@@ -182,7 +182,7 @@ export const CompanyOnboardingModal: React.FC<Props> = ({ isOpen, onClose }) => 
             <div>
               <h2 className="text-xl font-bold text-[#1A2433] dark:text-white flex items-center gap-2">
                 <Key className="w-5 h-5 text-[#163A70]" />
-                Select BuzzFlow Platform License & Edition
+                Select Vepari AI Platform License & Edition
               </h2>
               <p className="text-xs text-[#5B6878] mt-1">
                 Choose Educational Mode or activate an official Enterprise Product Key with live payment simulation.

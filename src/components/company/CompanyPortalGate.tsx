@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAccounting } from '../../context/AccountingContext';
 import { CompanyOnboardingModal } from './CompanyOnboardingModal';
+import { VEPARI_ASSETS } from '../../config/assets';
 import { 
   Building2, 
   ShieldCheck, 
@@ -14,7 +15,8 @@ import {
   AlertCircle,
   Briefcase,
   MapPin,
-  ChevronRight
+  ChevronRight,
+  LogIn
 } from 'lucide-react';
 
 export const CompanyPortalGate: React.FC = () => {
@@ -31,6 +33,7 @@ export const CompanyPortalGate: React.FC = () => {
   const [pinError, setPinError] = useState('');
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [selectedCompIdForPin, setSelectedCompIdForPin] = useState<string | null>(activeCompanyId || (companies[0]?.id || null));
+  const [userRole, setUserRole] = useState<'owner' | 'accountant' | 'auditor'>('owner');
 
   const targetComp = companies.find(c => c.id === selectedCompIdForPin) || companies[0];
 
@@ -41,24 +44,34 @@ export const CompanyPortalGate: React.FC = () => {
     setPinError('');
   };
 
-  const handlePinSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (pinInput.length !== 5) {
+  const handlePinSubmit = (e?: React.FormEvent, directPin?: string) => {
+    if (e) e.preventDefault();
+    const pinToAuth = directPin || pinInput;
+    if (pinToAuth.length !== 5) {
       setPinError('Please enter a full 5-digit PIN');
       return;
     }
 
-    const res = authenticateCompanyPin(pinInput);
+    const res = authenticateCompanyPin(pinToAuth);
     if (!res.success) {
       setPinError(res.message);
       setPinInput('');
     }
   };
 
+  const handleQuickLogin = (pin: string) => {
+    setPinInput(pin);
+    handlePinSubmit(undefined, pin);
+  };
+
   const handleKeyClick = (digit: string) => {
     if (pinInput.length < 5) {
-      setPinInput(prev => prev + digit);
+      const nextPin = pinInput + digit;
+      setPinInput(nextPin);
       setPinError('');
+      if (nextPin.length === 5) {
+        setTimeout(() => handlePinSubmit(undefined, nextPin), 150);
+      }
     }
   };
 
@@ -79,8 +92,8 @@ export const CompanyPortalGate: React.FC = () => {
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-[#163A70] flex items-center justify-center text-white shadow-lg shadow-[#163A70]/20 border border-[#16B8A6]/30 overflow-hidden p-0.5">
               <img 
-                src="/src/assets/images/buzzflow_logo_icon_1784785041750.jpg" 
-                alt="Buzzflow Accounting Logo" 
+                src={VEPARI_ASSETS.appIcon} 
+                alt="Vepari AI Accounting Logo" 
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-cover rounded-lg bg-white"
               />
@@ -180,30 +193,61 @@ export const CompanyPortalGate: React.FC = () => {
 
         {/* Right Column: 5-Digit PIN Gate Pad */}
         <div className="lg:col-span-5">
-          <div className="bg-white rounded-card border border-[#D8E2EE] shadow-soft p-8 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-[#2F6FED]/5 rounded-bl-full pointer-events-none" />
+          <div className="bg-white rounded-2xl sm:rounded-card border border-[#D8E2EE] shadow-soft p-5 sm:p-8 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-28 h-28 bg-[#2F6FED]/5 rounded-bl-full pointer-events-none" />
 
-            <div className="text-center space-y-2 mb-8">
-              <div className="w-14 h-14 mx-auto rounded-2xl bg-[#163A70] flex items-center justify-center text-white shadow-lg shadow-[#163A70]/20">
-                <Lock className="w-7 h-7 text-[#16B8A6]" />
+            {/* Role Switcher Pills */}
+            <div className="flex items-center justify-center gap-1 bg-[#F7F9FC] p-1 rounded-xl border border-[#D8E2EE] mb-5">
+              <button
+                type="button"
+                onClick={() => setUserRole('owner')}
+                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all ${
+                  userRole === 'owner' ? 'bg-[#163A70] text-white shadow-xs' : 'text-[#5B6878] hover:text-[#1A2433]'
+                }`}
+              >
+                Owner
+              </button>
+              <button
+                type="button"
+                onClick={() => setUserRole('accountant')}
+                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all ${
+                  userRole === 'accountant' ? 'bg-[#163A70] text-white shadow-xs' : 'text-[#5B6878] hover:text-[#1A2433]'
+                }`}
+              >
+                Accountant
+              </button>
+              <button
+                type="button"
+                onClick={() => setUserRole('auditor')}
+                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all ${
+                  userRole === 'auditor' ? 'bg-[#163A70] text-white shadow-xs' : 'text-[#5B6878] hover:text-[#1A2433]'
+                }`}
+              >
+                Auditor
+              </button>
+            </div>
+
+            <div className="text-center space-y-1.5 mb-6">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 mx-auto rounded-2xl bg-[#163A70] flex items-center justify-center text-white shadow-lg shadow-[#163A70]/20">
+                <Lock className="w-6 h-6 sm:w-7 sm:h-7 text-[#16B8A6]" />
               </div>
-              <h3 className="text-xl font-bold text-[#1A2433]">Security PIN Verification</h3>
+              <h3 className="text-lg sm:text-xl font-bold text-[#1A2433]">Security PIN Verification</h3>
               <p className="text-xs text-[#5B6878]">
-                Enter 5-digit encrypted security PIN for <span className="font-bold text-[#163A70]">{targetComp?.name}</span>
+                Authenticate <span className="font-bold text-[#163A70]">{userRole.toUpperCase()}</span> role for <strong className="text-[#163A70]">{targetComp?.name}</strong>
               </p>
             </div>
 
-            <form onSubmit={handlePinSubmit} className="space-y-6">
+            <form onSubmit={handlePinSubmit} className="space-y-5">
               {/* PIN Display Slots */}
-              <div className="flex justify-center gap-3">
+              <div className="flex justify-center gap-2 sm:gap-3">
                 {[0, 1, 2, 3, 4].map((idx) => {
                   const hasChar = pinInput.length > idx;
                   return (
                     <div
                       key={idx}
-                      className={`w-12 h-14 rounded-xl border-2 flex items-center justify-center text-2xl font-bold font-num transition-all ${
+                      className={`w-10 h-12 sm:w-12 sm:h-14 rounded-xl border-2 flex items-center justify-center text-xl sm:text-2xl font-bold font-num transition-all ${
                         hasChar
-                          ? 'border-[#2F6FED] bg-[#2F6FED]/5 text-[#163A70] shadow-sm'
+                          ? 'border-[#2F6FED] bg-[#2F6FED]/5 text-[#163A70] shadow-xs scale-105'
                           : 'border-[#D8E2EE] bg-[#F7F9FC] text-transparent'
                       }`}
                     >
@@ -220,14 +264,14 @@ export const CompanyPortalGate: React.FC = () => {
                 </div>
               )}
 
-              {/* Custom Onscreen Numeric Keypad */}
-              <div className="grid grid-cols-3 gap-3 pt-2">
+              {/* Custom Touch Keypad */}
+              <div className="grid grid-cols-3 gap-2 sm:gap-3 pt-1">
                 {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((num) => (
                   <button
                     key={num}
                     type="button"
                     onClick={() => handleKeyClick(num)}
-                    className="py-3 rounded-xl bg-[#F7F9FC] hover:bg-[#EEF3F8] active:bg-[#2F6FED]/10 text-[#1A2433] font-bold text-lg font-num border border-[#D8E2EE] transition-all shadow-xs"
+                    className="py-2.5 sm:py-3 rounded-xl bg-[#F7F9FC] hover:bg-[#EEF3F8] active:bg-[#2F6FED]/20 text-[#1A2433] font-bold text-base sm:text-lg font-num border border-[#D8E2EE] transition-all shadow-2xs active:scale-95 min-h-[44px]"
                   >
                     {num}
                   </button>
@@ -235,32 +279,59 @@ export const CompanyPortalGate: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setPinInput('')}
-                  className="py-3 rounded-xl bg-[#F7F9FC] hover:bg-rose-50 text-[#E53935] font-bold text-xs border border-[#D8E2EE] transition-all"
+                  className="py-2.5 sm:py-3 rounded-xl bg-[#F7F9FC] hover:bg-rose-50 text-[#E53935] font-bold text-xs border border-[#D8E2EE] transition-all min-h-[44px]"
                 >
                   Clear
                 </button>
                 <button
                   type="button"
                   onClick={() => handleKeyClick('0')}
-                  className="py-3 rounded-xl bg-[#F7F9FC] hover:bg-[#EEF3F8] text-[#1A2433] font-bold text-lg font-num border border-[#D8E2EE] transition-all"
+                  className="py-2.5 sm:py-3 rounded-xl bg-[#F7F9FC] hover:bg-[#EEF3F8] active:bg-[#2F6FED]/20 text-[#1A2433] font-bold text-base sm:text-lg font-num border border-[#D8E2EE] transition-all min-h-[44px]"
                 >
                   0
                 </button>
                 <button
                   type="button"
                   onClick={handleBackspace}
-                  className="py-3 rounded-xl bg-[#F7F9FC] hover:bg-slate-100 text-[#5B6878] font-bold text-xs border border-[#D8E2EE] transition-all"
+                  className="py-2.5 sm:py-3 rounded-xl bg-[#F7F9FC] hover:bg-slate-100 text-[#5B6878] font-bold text-xs border border-[#D8E2EE] transition-all min-h-[44px]"
                 >
                   ⌫
                 </button>
               </div>
 
+              {/* 1-Click Quick Login Option Buttons */}
+              <div className="pt-2 space-y-2 border-t border-[#D8E2EE]">
+                <div className="text-[11px] font-bold text-center text-[#5B6878] uppercase tracking-wider">
+                  Instant Demo Login
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleQuickLogin('12345')}
+                    className="py-2.5 px-3 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95 shadow-2xs"
+                  >
+                    <LogIn className="w-3.5 h-3.5 text-teal-600" />
+                    <span>Owner (12345)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleQuickLogin('54321')}
+                    className="py-2.5 px-3 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95 shadow-2xs"
+                  >
+                    <LogIn className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Accountant (54321)</span>
+                  </button>
+                </div>
+              </div>
+
               <button
                 type="submit"
                 disabled={pinInput.length !== 5}
-                className="w-full py-3.5 rounded-xl bg-gradient-brand hover:opacity-95 text-white font-bold text-sm shadow-md transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                className="w-full py-3.5 rounded-xl bg-gradient-brand hover:opacity-95 text-white font-bold text-sm shadow-md transition-all disabled:opacity-50 flex items-center justify-center gap-2 min-h-[44px] active:scale-[0.99]"
               >
-                <span>Unlock Company Workspace</span>
+                <span>Login & Unlock OS</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
 
@@ -275,7 +346,7 @@ export const CompanyPortalGate: React.FC = () => {
       {/* Portal Footer */}
       <footer className="border-t border-[#D8E2EE] bg-white py-4 px-6 text-center text-xs text-[#8894A7]">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>© 2026 BuzzFlow Accounting Platform. All data stored securely in local workspace vault.</span>
+          <span>© 2026 Vepari AI Accounting Platform. All data stored securely in local workspace vault.</span>
           <span className="font-semibold text-[#163A70]">Encrypted 5-Digit Security Protocol</span>
         </div>
       </footer>
